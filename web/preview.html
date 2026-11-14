@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ghana Fire Preview</title>
+<link rel="icon" href="data:,">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+    --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+    --seq: #cde2fb,#9ec5f4,#6da7ec,#3987e5,#256abf,#184f95,#0d366b;
+    --zero: #f0efec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+      --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+      --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+      --seq: #104281,#184f95,#1c5cab,#256abf,#3987e5,#6da7ec,#b7d3f6;
+      --zero: #232322;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+    --seq: #104281,#184f95,#1c5cab,#256abf,#3987e5,#6da7ec,#b7d3f6;
+    --zero: #232322;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--ink-2); margin: 0 0 20px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+          padding: 16px; margin-bottom: 16px; }
+  .card h2 { font-size: 16px; margin: 0 0 2px; }
+  .card p { color: var(--ink-2); margin: 0 0 12px; font-size: 14px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; background: transparent; color: var(--ink-2); padding: 6px 12px;
+                font: inherit; font-size: 14px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+  .chart { width: 100%; height: 620px; }
+  .chart.short { height: 340px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;
+           margin-bottom: 16px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .stat .v { font-size: 26px; font-weight: 600; }
+  .stat .l { color: var(--ink-2); font-size: 13px; }
+  details { margin-top: 8px; }
+  summary { cursor: pointer; color: var(--ink-2); font-size: 14px; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; margin-top: 8px; }
+  th, td { padding: 4px 10px; text-align: right; border-bottom: 1px solid var(--grid); }
+  th:first-child, td:first-child { text-align: left; }
+  .note { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Ghana burning activity: harmonized preview</h1>
+  <p class="sub" id="sub"></p>
+
+  <div class="stats" id="stats"></div>
+
+  <section class="card">
+    <h2>Burning activity calendar</h2>
+    <p id="calnote"></p>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Record">
+        <button data-sensor="Harmonized" aria-pressed="true">Harmonized</button>
+        <button data-sensor="MODIS" aria-pressed="false">MODIS raw</button>
+        <button data-sensor="VIIRS" aria-pressed="false">VIIRS raw</button>
+      </div>
+    </div>
+    <div id="cal" class="chart" role="img" aria-label="Calendar heatmap of monthly burning activity"></div>
+  </section>
+
+  <section class="card">
+    <h2>Burning activity per year</h2>
+    <p>Active cell-days (a 0.025° cell with fire on a day). Raw MODIS and VIIRS disagree by about 3×; the harmonized record joins them without a jump at 2012.</p>
+    <div id="years" class="chart short" role="img" aria-label="Line chart of yearly activity: MODIS, VIIRS, harmonized"></div>
+    <details>
+      <summary>Show table</summary>
+      <div class="tablewrap"><table id="tbl"></table></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2>Correction factor by month</h2>
+    <p>How many VIIRS cell-days one MODIS cell-day equals. Lower in the main fire season (big fires both sensors see), higher in the off-season (small fires only VIIRS catches).</p>
+    <div id="factors" class="chart short" role="img" aria-label="Bar chart of monthly correction factors"></div>
+  </section>
+  <p class="note" id="foot"></p>
+</main>
+<script>
+const DATA = [{"year": 2000, "month": 11, "MODIS": 1668, "VIIRS": 0, "Harmonized": 18868.2}, {"year": 2000, "month": 12, "MODIS": 4888, "VIIRS": 0, "Harmonized": 35474.7}, {"year": 2001, "month": 1, "MODIS": 3901, "VIIRS": 0, "Harmonized": 28420.7}, {"year": 2001, "month": 2, "MODIS": 1902, "VIIRS": 0, "Harmonized": 18734.3}, {"year": 2001, "month": 3, "MODIS": 418, "VIIRS": 0, "Harmonized": 13022.5}, {"year": 2001, "month": 4, "MODIS": 36, "VIIRS": 0, "Harmonized": 4127.6}, {"year": 2001, "month": 5, "MODIS": 4, "VIIRS": 0, "Harmonized": 36.1}, {"year": 2001, "month": 6, "MODIS": 2, "VIIRS": 0, "Harmonized": 18.1}, {"year": 2001, "month": 7, "MODIS": 1, "VIIRS": 0, "Harmonized": 9.0}, {"year": 2001, "month": 8, "MODIS": 3, "VIIRS": 0, "Harmonized": 27.1}, {"year": 2001, "month": 9, "MODIS": 1, "VIIRS": 0, "Harmonized": 9.0}, {"year": 2001, "month": 10, "MODIS": 69, "VIIRS": 0, "Harmonized": 2033.5}, {"year": 2001, "month": 11, "MODIS": 2093, "VIIRS": 0, "Harmonized": 23675.8}, {"year": 2001, "month": 12, "MODIS": 4885, "VIIRS": 0, "Harmonized": 35452.9}, {"year": 2002, "month": 1, "MODIS": 2913, "VIIRS": 0, "Harmonized": 21222.7}, {"year": 2002, "month": 2, "MODIS": 1199, "VIIRS": 0, "Harmonized": 11809.9}, {"year": 2002, "month": 3, "MODIS": 166, "VIIRS": 0, "Harmonized": 5171.6}, {"year": 2002, "month": 4, "MODIS": 30, "VIIRS": 0, "Harmonized": 3439.7}, {"year": 2002, "month": 5, "MODIS": 4, "VIIRS": 0, "Harmonized": 36.1}, {"year": 2002, "month": 7, "MODIS": 8, "VIIRS": 0, "Harmonized": 29.0}, {"year": 2002, "month": 8, "MODIS": 4, "VIIRS": 0, "Harmonized": 49.4}, {"year": 2002, "month": 9, "MODIS": 62, "VIIRS": 0, "Harmonized": 752.2}, {"year": 2002, "month": 10, "MODIS": 72, "VIIRS": 0, "Harmonized": 454.1}, {"year": 2002, "month": 11, "MODIS": 4360, "VIIRS": 0, "Harmonized": 12000.9}, {"year": 2002, "month": 12, "MODIS": 16890, "VIIRS": 0, "Harmonized": 39431.4}, {"year": 2003, "month": 1, "MODIS": 10281, "VIIRS": 0, "Harmonized": 26605.2}, {"year": 2003, "month": 2, "MODIS": 3237, "VIIRS": 0, "Harmonized": 11162.1}, {"year": 2003, "month": 3, "MODIS": 1666, "VIIRS": 0, "Harmonized": 9257.1}, {"year": 2003, "month": 4, "MODIS": 1036, "VIIRS": 0, "Harmonized": 8188.3}, {"year": 2003, "month": 5, "MODIS": 427, "VIIRS": 0, "Harmonized": 4193.1}, {"year": 2003, "month": 6, "MODIS": 4, "VIIRS": 0, "Harmonized": 11.4}, {"year": 2003, "month": 7, "MODIS": 18, "VIIRS": 0, "Harmonized": 51.3}, {"year": 2003, "month": 8, "MODIS": 39, "VIIRS": 0, "Harmonized": 481.5}, {"year": 2003, "month": 9, "MODIS": 59, "VIIRS": 0, "Harmonized": 715.8}, {"year": 2003, "month": 10, "MODIS": 50, "VIIRS": 0, "Harmonized": 315.3}, {"year": 2003, "month": 11, "MODIS": 5339, "VIIRS": 0, "Harmonized": 14695.6}, {"year": 2003, "month": 12, "MODIS": 15315, "VIIRS": 0, "Harmonized": 35754.4}, {"year": 2004, "month": 1, "MODIS": 8906, "VIIRS": 0, "Harmonized": 23046.9}, {"year": 2004, "month": 2, "MODIS": 4629, "VIIRS": 0, "Harmonized": 15962.2}, {"year": 2004, "month": 3, "MODIS": 1679, "VIIRS": 0, "Harmonized": 9329.4}, {"year": 2004, "month": 4, "MODIS": 988, "VIIRS": 0, "Harmonized": 7809.0}, {"year": 2004, "month": 5, "MODIS": 276, "VIIRS": 0, "Harmonized": 2710.3}, {"year": 2004, "month": 6, "MODIS": 4, "VIIRS": 0, "Harmonized": 11.4}, {"year": 2004, "month": 7, "MODIS": 11, "VIIRS": 0, "Harmonized": 31.3}, {"year": 2004, "month": 8, "MODIS": 34, "VIIRS": 0, "Harmonized": 419.8}, {"year": 2004, "month": 9, "MODIS": 22, "VIIRS": 0, "Harmonized": 266.9}, {"year": 2004, "month": 10, "MODIS": 346, "VIIRS": 0, "Harmonized": 2182.0}, {"year": 2004, "month": 11, "MODIS": 5860, "VIIRS": 0, "Harmonized": 16129.7}, {"year": 2004, "month": 12, "MODIS": 12423, "VIIRS": 0, "Harmonized": 29002.7}, {"year": 2005, "month": 1, "MODIS": 12805, "VIIRS": 0, "Harmonized": 33136.8}, {"year": 2005, "month": 2, "MODIS": 3593, "VIIRS": 0, "Harmonized": 12389.7}, {"year": 2005, "month": 3, "MODIS": 1821, "VIIRS": 0, "Harmonized": 10118.4}, {"year": 2005, "month": 4, "MODIS": 606, "VIIRS": 0, "Harmonized": 4789.7}, {"year": 2005, "month": 5, "MODIS": 109, "VIIRS": 0, "Harmonized": 1070.4}, {"year": 2005, "month": 6, "MODIS": 5, "VIIRS": 0, "Harmonized": 14.2}, {"year": 2005, "month": 7, "MODIS": 16, "VIIRS": 0, "Harmonized": 45.6}, {"year": 2005, "month": 8, "MODIS": 101, "VIIRS": 0, "Harmonized": 1246.9}, {"year": 2005, "month": 9, "MODIS": 81, "VIIRS": 0, "Harmonized": 982.7}, {"year": 2005, "month": 10, "MODIS": 247, "VIIRS": 0, "Harmonized": 1557.7}, {"year": 2005, "month": 11, "MODIS": 6877, "VIIRS": 0, "Harmonized": 18928.9}, {"year": 2005, "month": 12, "MODIS": 14909, "VIIRS": 0, "Harmonized": 34806.6}, {"year": 2006, "month": 1, "MODIS": 8067, "VIIRS": 0, "Harmonized": 20875.8}, {"year": 2006, "month": 2, "MODIS": 2891, "VIIRS": 0, "Harmonized": 9969.0}, {"year": 2006, "month": 3, "MODIS": 1318, "VIIRS": 0, "Harmonized": 7323.5}, {"year": 2006, "month": 4, "MODIS": 1134, "VIIRS": 0, "Harmonized": 8962.9}, {"year": 2006, "month": 5, "MODIS": 252, "VIIRS": 0, "Harmonized": 2474.6}, {"year": 2006, "month": 6, "MODIS": 13, "VIIRS": 0, "Harmonized": 37.0}, {"year": 2006, "month": 7, "MODIS": 14, "VIIRS": 0, "Harmonized": 39.9}, {"year": 2006, "month": 8, "MODIS": 84, "VIIRS": 0, "Harmonized": 1037.1}, {"year": 2006, "month": 9, "MODIS": 19, "VIIRS": 0, "Harmonized": 230.5}, {"year": 2006, "month": 10, "MODIS": 15, "VIIRS": 0, "Harmonized": 94.6}, {"year": 2006, "month": 11, "MODIS": 7635, "VIIRS": 0, "Harmonized": 21015.3}, {"year": 2006, "month": 12, "MODIS": 16947, "VIIRS": 0, "Harmonized": 39564.5}, {"year": 2007, "month": 1, "MODIS": 12120, "VIIRS": 0, "Harmonized": 31364.1}, {"year": 2007, "month": 2, "MODIS": 3092, "VIIRS": 0, "Harmonized": 10662.1}, {"year": 2007, "month": 3, "MODIS": 2275, "VIIRS": 0, "Harmonized": 12641.0}, {"year": 2007, "month": 4, "MODIS": 1080, "VIIRS": 0, "Harmonized": 8536.1}, {"year": 2007, "month": 5, "MODIS": 118, "VIIRS": 0, "Harmonized": 1158.8}, {"year": 2007, "month": 6, "MODIS": 5, "VIIRS": 0, "Harmonized": 14.2}, {"year": 2007, "month": 7, "MODIS": 7, "VIIRS": 0, "Harmonized": 19.9}, {"year": 2007, "month": 8, "MODIS": 7, "VIIRS": 0, "Harmonized": 86.4}, {"year": 2007, "month": 9, "MODIS": 9, "VIIRS": 0, "Harmonized": 109.2}, {"year": 2007, "month": 10, "MODIS": 66, "VIIRS": 0, "Harmonized": 416.2}, {"year": 2007, "month": 11, "MODIS": 2851, "VIIRS": 0, "Harmonized": 7847.4}, {"year": 2007, "month": 12, "MODIS": 14912, "VIIRS": 0, "Harmonized": 34813.6}, {"year": 2008, "month": 1, "MODIS": 14092, "VIIRS": 0, "Harmonized": 36467.3}, {"year": 2008, "month": 2, "MODIS": 4253, "VIIRS": 0, "Harmonized": 14665.6}, {"year": 2008, "month": 3, "MODIS": 1472, "VIIRS": 0, "Harmonized": 8179.2}, {"year": 2008, "month": 4, "MODIS": 699, "VIIRS": 0, "Harmonized": 5524.8}, {"year": 2008, "month": 5, "MODIS": 54, "VIIRS": 0, "Harmonized": 530.3}, {"year": 2008, "month": 6, "MODIS": 3, "VIIRS": 0, "Harmonized": 8.5}, {"year": 2008, "month": 7, "MODIS": 7, "VIIRS": 0, "Harmonized": 19.9}, {"year": 2008, "month": 8, "MODIS": 61, "VIIRS": 0, "Harmonized": 753.1}, {"year": 2008, "month": 9, "MODIS": 3, "VIIRS": 0, "Harmonized": 36.4}, {"year": 2008, "month": 10, "MODIS": 63, "VIIRS": 0, "Harmonized": 397.3}, {"year": 2008, "month": 11, "MODIS": 4941, "VIIRS": 0, "Harmonized": 13600.1}, {"year": 2008, "month": 12, "MODIS": 14769, "VIIRS": 0, "Harmonized": 34479.7}, {"year": 2009, "month": 1, "MODIS": 13256, "VIIRS": 0, "Harmonized": 34303.9}, {"year": 2009, "month": 2, "MODIS": 1733, "VIIRS": 0, "Harmonized": 5975.9}, {"year": 2009, "month": 3, "MODIS": 1230, "VIIRS": 0, "Harmonized": 6834.5}, {"year": 2009, "month": 4, "MODIS": 874, "VIIRS": 0, "Harmonized": 6907.9}, {"year": 2009, "month": 5, "MODIS": 169, "VIIRS": 0, "Harmonized": 1659.6}, {"year": 2009, "month": 6, "MODIS": 8, "VIIRS": 0, "Harmonized": 22.8}, {"year": 2009, "month": 7, "MODIS": 35, "VIIRS": 0, "Harmonized": 99.7}, {"year": 2009, "month": 8, "MODIS": 23, "VIIRS": 0, "Harmonized": 284.0}, {"year": 2009, "month": 9, "MODIS": 25, "VIIRS": 0, "Harmonized": 303.3}, {"year": 2009, "month": 10, "MODIS": 79, "VIIRS": 0, "Harmonized": 498.2}, {"year": 2009, "month": 11, "MODIS": 4690, "VIIRS": 0, "Harmonized": 12909.2}, {"year": 2009, "month": 12, "MODIS": 14746, "VIIRS": 0, "Harmonized": 34426.0}, {"year": 2010, "month": 1, "MODIS": 13863, "VIIRS": 0, "Harmonized": 35874.7}, {"year": 2010, "month": 2, "MODIS": 4588, "VIIRS": 0, "Harmonized": 15820.8}, {"year": 2010, "month": 3, "MODIS": 1043, "VIIRS": 0, "Harmonized": 5795.4}, {"year": 2010, "month": 4, "MODIS": 901, "VIIRS": 0, "Harmonized": 7121.3}, {"year": 2010, "month": 5, "MODIS": 117, "VIIRS": 0, "Harmonized": 1148.9}, {"year": 2010, "month": 6, "MODIS": 5, "VIIRS": 0, "Harmonized": 14.2}, {"year": 2010, "month": 7, "MODIS": 46, "VIIRS": 0, "Harmonized": 131.0}, {"year": 2010, "month": 8, "MODIS": 91, "VIIRS": 0, "Harmonized": 1123.5}, {"year": 2010, "month": 9, "MODIS": 13, "VIIRS": 0, "Harmonized": 157.7}, {"year": 2010, "month": 10, "MODIS": 19, "VIIRS": 0, "Harmonized": 119.8}, {"year": 2010, "month": 11, "MODIS": 2974, "VIIRS": 0, "Harmonized": 8185.9}, {"year": 2010, "month": 12, "MODIS": 12899, "VIIRS": 0, "Harmonized": 30114.0}, {"year": 2011, "month": 1, "MODIS": 13977, "VIIRS": 0, "Harmonized": 36169.7}, {"year": 2011, "month": 2, "MODIS": 4310, "VIIRS": 0, "Harmonized": 14862.2}, {"year": 2011, "month": 3, "MODIS": 771, "VIIRS": 0, "Harmonized": 4284.1}, {"year": 2011, "month": 4, "MODIS": 1132, "VIIRS": 0, "Harmonized": 8947.1}, {"year": 2011, "month": 5, "MODIS": 169, "VIIRS": 0, "Harmonized": 1659.6}, {"year": 2011, "month": 6, "MODIS": 7, "VIIRS": 0, "Harmonized": 19.9}, {"year": 2011, "month": 7, "MODIS": 3, "VIIRS": 0, "Harmonized": 8.5}, {"year": 2011, "month": 8, "MODIS": 53, "VIIRS": 0, "Harmonized": 654.3}, {"year": 2011, "month": 9, "MODIS": 18, "VIIRS": 0, "Harmonized": 218.4}, {"year": 2011, "month": 10, "MODIS": 70, "VIIRS": 0, "Harmonized": 441.5}, {"year": 2011, "month": 11, "MODIS": 5162, "VIIRS": 0, "Harmonized": 14208.4}, {"year": 2011, "month": 12, "MODIS": 19911, "VIIRS": 0, "Harmonized": 46484.2}, {"year": 2012, "month": 1, "MODIS": 12106, "VIIRS": 7318, "Harmonized": 32098.8}, {"year": 2012, "month": 2, "MODIS": 2637, "VIIRS": 9354, "Harmonized": 9354.0}, {"year": 2012, "month": 3, "MODIS": 1827, "VIIRS": 7302, "Harmonized": 7302.0}, {"year": 2012, "month": 4, "MODIS": 574, "VIIRS": 4566, "Harmonized": 4566.0}, {"year": 2012, "month": 5, "MODIS": 73, "VIIRS": 1252, "Harmonized": 1252.0}, {"year": 2012, "month": 6, "MODIS": 4, "VIIRS": 67, "Harmonized": 67.0}, {"year": 2012, "month": 7, "MODIS": 9, "VIIRS": 113, "Harmonized": 113.0}, {"year": 2012, "month": 8, "MODIS": 48, "VIIRS": 598, "Harmonized": 598.0}, {"year": 2012, "month": 9, "MODIS": 34, "VIIRS": 298, "Harmonized": 298.0}, {"year": 2012, "month": 10, "MODIS": 29, "VIIRS": 353, "Harmonized": 353.0}, {"year": 2012, "month": 11, "MODIS": 1921, "VIIRS": 6145, "Harmonized": 6145.0}, {"year": 2012, "month": 12, "MODIS": 14039, "VIIRS": 31907, "Harmonized": 31907.0}, {"year": 2013, "month": 1, "MODIS": 13389, "VIIRS": 34808, "Harmonized": 34808.0}, {"year": 2013, "month": 2, "MODIS": 3969, "VIIRS": 12656, "Harmonized": 12656.0}, {"year": 2013, "month": 3, "MODIS": 1258, "VIIRS": 7489, "Harmonized": 7489.0}, {"year": 2013, "month": 4, "MODIS": 710, "VIIRS": 5135, "Harmonized": 5135.0}, {"year": 2013, "month": 5, "MODIS": 100, "VIIRS": 856, "Harmonized": 856.0}, {"year": 2013, "month": 6, "MODIS": 8, "VIIRS": 153, "Harmonized": 153.0}, {"year": 2013, "month": 7, "MODIS": 5, "VIIRS": 100, "Harmonized": 100.0}, {"year": 2013, "month": 8, "MODIS": 55, "VIIRS": 582, "Harmonized": 582.0}, {"year": 2013, "month": 9, "MODIS": 26, "VIIRS": 334, "Harmonized": 334.0}, {"year": 2013, "month": 10, "MODIS": 96, "VIIRS": 787, "Harmonized": 787.0}, {"year": 2013, "month": 11, "MODIS": 3520, "VIIRS": 10436, "Harmonized": 10436.0}, {"year": 2013, "month": 12, "MODIS": 14038, "VIIRS": 32390, "Harmonized": 32390.0}, {"year": 2014, "month": 1, "MODIS": 8794, "VIIRS": 23825, "Harmonized": 23825.0}, {"year": 2014, "month": 2, "MODIS": 3053, "VIIRS": 12120, "Harmonized": 12120.0}, {"year": 2014, "month": 3, "MODIS": 1328, "VIIRS": 7451, "Harmonized": 7451.0}, {"year": 2014, "month": 4, "MODIS": 738, "VIIRS": 6424, "Harmonized": 6424.0}, {"year": 2014, "month": 5, "MODIS": 78, "VIIRS": 890, "Harmonized": 890.0}, {"year": 2014, "month": 6, "MODIS": 6, "VIIRS": 80, "Harmonized": 80.0}, {"year": 2014, "month": 7, "MODIS": 8, "VIIRS": 99, "Harmonized": 99.0}, {"year": 2014, "month": 8, "MODIS": 34, "VIIRS": 356, "Harmonized": 356.0}, {"year": 2014, "month": 9, "MODIS": 4, "VIIRS": 164, "Harmonized": 164.0}, {"year": 2014, "month": 10, "MODIS": 66, "VIIRS": 463, "Harmonized": 463.0}, {"year": 2014, "month": 11, "MODIS": 2545, "VIIRS": 7595, "Harmonized": 7595.0}, {"year": 2014, "month": 12, "MODIS": 16439, "VIIRS": 37641, "Harmonized": 37641.0}, {"year": 2015, "month": 1, "MODIS": 11222, "VIIRS": 28869, "Harmonized": 28869.0}, {"year": 2015, "month": 2, "MODIS": 2175, "VIIRS": 9266, "Harmonized": 9266.0}, {"year": 2015, "month": 3, "MODIS": 2024, "VIIRS": 8597, "Harmonized": 8597.0}, {"year": 2015, "month": 4, "MODIS": 756, "VIIRS": 4979, "Harmonized": 4979.0}, {"year": 2015, "month": 5, "MODIS": 120, "VIIRS": 1328, "Harmonized": 1328.0}, {"year": 2015, "month": 6, "MODIS": 4, "VIIRS": 65, "Harmonized": 65.0}, {"year": 2015, "month": 7, "MODIS": 8, "VIIRS": 136, "Harmonized": 136.0}, {"year": 2015, "month": 8, "MODIS": 63, "VIIRS": 515, "Harmonized": 515.0}, {"year": 2015, "month": 9, "MODIS": 18, "VIIRS": 466, "Harmonized": 466.0}, {"year": 2015, "month": 10, "MODIS": 19, "VIIRS": 383, "Harmonized": 383.0}, {"year": 2015, "month": 11, "MODIS": 3411, "VIIRS": 8830, "Harmonized": 8830.0}, {"year": 2015, "month": 12, "MODIS": 18248, "VIIRS": 36911, "Harmonized": 36911.0}, {"year": 2016, "month": 1, "MODIS": 10013, "VIIRS": 25350, "Harmonized": 25350.0}, {"year": 2016, "month": 2, "MODIS": 3668, "VIIRS": 13279, "Harmonized": 13279.0}, {"year": 2016, "month": 3, "MODIS": 1150, "VIIRS": 7045, "Harmonized": 7045.0}, {"year": 2016, "month": 4, "MODIS": 523, "VIIRS": 4656, "Harmonized": 4656.0}, {"year": 2016, "month": 5, "MODIS": 60, "VIIRS": 699, "Harmonized": 699.0}, {"year": 2016, "month": 6, "MODIS": 9, "VIIRS": 98, "Harmonized": 98.0}, {"year": 2016, "month": 7, "MODIS": 13, "VIIRS": 170, "Harmonized": 170.0}, {"year": 2016, "month": 8, "MODIS": 9, "VIIRS": 267, "Harmonized": 267.0}, {"year": 2016, "month": 9, "MODIS": 11, "VIIRS": 194, "Harmonized": 194.0}, {"year": 2016, "month": 10, "MODIS": 130, "VIIRS": 682, "Harmonized": 682.0}, {"year": 2016, "month": 11, "MODIS": 4191, "VIIRS": 10429, "Harmonized": 10429.0}, {"year": 2016, "month": 12, "MODIS": 11168, "VIIRS": 29662, "Harmonized": 29662.0}, {"year": 2017, "month": 1, "MODIS": 11017, "VIIRS": 29231, "Harmonized": 29231.0}, {"year": 2017, "month": 2, "MODIS": 3128, "VIIRS": 9834, "Harmonized": 9834.0}, {"year": 2017, "month": 3, "MODIS": 1397, "VIIRS": 8118, "Harmonized": 8118.0}, {"year": 2017, "month": 4, "MODIS": 530, "VIIRS": 4703, "Harmonized": 4703.0}, {"year": 2017, "month": 5, "MODIS": 62, "VIIRS": 674, "Harmonized": 674.0}, {"year": 2017, "month": 6, "MODIS": 4, "VIIRS": 42, "Harmonized": 42.0}, {"year": 2017, "month": 7, "MODIS": 1, "VIIRS": 74, "Harmonized": 74.0}, {"year": 2017, "month": 8, "MODIS": 11, "VIIRS": 218, "Harmonized": 218.0}, {"year": 2017, "month": 9, "MODIS": 37, "VIIRS": 318, "Harmonized": 318.0}, {"year": 2017, "month": 10, "MODIS": 274, "VIIRS": 1490, "Harmonized": 1490.0}, {"year": 2017, "month": 11, "MODIS": 7414, "VIIRS": 17848, "Harmonized": 17848.0}, {"year": 2017, "month": 12, "MODIS": 13244, "VIIRS": 31123, "Harmonized": 31123.0}, {"year": 2018, "month": 1, "MODIS": 11195, "VIIRS": 26545, "Harmonized": 26545.0}, {"year": 2018, "month": 2, "MODIS": 3077, "VIIRS": 10916, "Harmonized": 10916.0}, {"year": 2018, "month": 3, "MODIS": 629, "VIIRS": 5527, "Harmonized": 5527.0}, {"year": 2018, "month": 4, "MODIS": 297, "VIIRS": 3707, "Harmonized": 3707.0}, {"year": 2018, "month": 5, "MODIS": 119, "VIIRS": 767, "Harmonized": 767.0}, {"year": 2018, "month": 6, "MODIS": 5, "VIIRS": 110, "Harmonized": 110.0}, {"year": 2018, "month": 7, "MODIS": 6, "VIIRS": 115, "Harmonized": 115.0}, {"year": 2018, "month": 8, "MODIS": 32, "VIIRS": 584, "Harmonized": 584.0}, {"year": 2018, "month": 9, "MODIS": 4, "VIIRS": 91, "Harmonized": 91.0}, {"year": 2018, "month": 10, "MODIS": 59, "VIIRS": 446, "Harmonized": 446.0}, {"year": 2018, "month": 11, "MODIS": 2699, "VIIRS": 7730, "Harmonized": 7730.0}, {"year": 2018, "month": 12, "MODIS": 15562, "VIIRS": 33152, "Harmonized": 33152.0}, {"year": 2019, "month": 1, "MODIS": 11742, "VIIRS": 30401, "Harmonized": 30401.0}, {"year": 2019, "month": 2, "MODIS": 3028, "VIIRS": 11376, "Harmonized": 11376.0}, {"year": 2019, "month": 3, "MODIS": 1846, "VIIRS": 8326, "Harmonized": 8326.0}, {"year": 2019, "month": 4, "MODIS": 483, "VIIRS": 3943, "Harmonized": 3943.0}, {"year": 2019, "month": 5, "MODIS": 47, "VIIRS": 735, "Harmonized": 735.0}, {"year": 2019, "month": 6, "MODIS": 5, "VIIRS": 91, "Harmonized": 91.0}, {"year": 2019, "month": 7, "MODIS": 3, "VIIRS": 66, "Harmonized": 66.0}, {"year": 2019, "month": 8, "MODIS": 21, "VIIRS": 392, "Harmonized": 392.0}, {"year": 2019, "month": 9, "MODIS": 2, "VIIRS": 161, "Harmonized": 161.0}, {"year": 2019, "month": 10, "MODIS": 22, "VIIRS": 139, "Harmonized": 139.0}, {"year": 2019, "month": 11, "MODIS": 2231, "VIIRS": 6317, "Harmonized": 6317.0}, {"year": 2019, "month": 12, "MODIS": 12208, "VIIRS": 27895, "Harmonized": 27895.0}, {"year": 2020, "month": 1, "MODIS": 13489, "VIIRS": 34720, "Harmonized": 34720.0}, {"year": 2020, "month": 2, "MODIS": 6331, "VIIRS": 16798, "Harmonized": 16798.0}, {"year": 2020, "month": 3, "MODIS": 989, "VIIRS": 5804, "Harmonized": 5804.0}, {"year": 2020, "month": 4, "MODIS": 731, "VIIRS": 5159, "Harmonized": 5159.0}, {"year": 2020, "month": 5, "MODIS": 230, "VIIRS": 1748, "Harmonized": 1748.0}, {"year": 2020, "month": 6, "MODIS": 4, "VIIRS": 64, "Harmonized": 64.0}, {"year": 2020, "month": 7, "MODIS": 6, "VIIRS": 87, "Harmonized": 87.0}, {"year": 2020, "month": 8, "MODIS": 37, "VIIRS": 853, "Harmonized": 853.0}, {"year": 2020, "month": 9, "MODIS": 21, "VIIRS": 322, "Harmonized": 322.0}, {"year": 2020, "month": 10, "MODIS": 178, "VIIRS": 858, "Harmonized": 858.0}, {"year": 2020, "month": 11, "MODIS": 5456, "VIIRS": 13891, "Harmonized": 13891.0}, {"year": 2020, "month": 12, "MODIS": 11795, "VIIRS": 31245, "Harmonized": 31245.0}, {"year": 2021, "month": 1, "MODIS": 8545, "VIIRS": 23115, "Harmonized": 23115.0}, {"year": 2021, "month": 2, "MODIS": 2788, "VIIRS": 9817, "Harmonized": 9817.0}, {"year": 2021, "month": 3, "MODIS": 696, "VIIRS": 3585, "Harmonized": 3585.0}, {"year": 2021, "month": 4, "MODIS": 553, "VIIRS": 4167, "Harmonized": 4167.0}, {"year": 2021, "month": 5, "MODIS": 195, "VIIRS": 1853, "Harmonized": 1853.0}, {"year": 2021, "month": 6, "MODIS": 11, "VIIRS": 235, "Harmonized": 235.0}, {"year": 2021, "month": 7, "MODIS": 7, "VIIRS": 183, "Harmonized": 183.0}, {"year": 2021, "month": 8, "MODIS": 12, "VIIRS": 240, "Harmonized": 240.0}, {"year": 2021, "month": 9, "MODIS": 5, "VIIRS": 75, "Harmonized": 75.0}, {"year": 2021, "month": 10, "MODIS": 39, "VIIRS": 301, "Harmonized": 301.0}, {"year": 2021, "month": 11, "MODIS": 1825, "VIIRS": 6010, "Harmonized": 6010.0}, {"year": 2021, "month": 12, "MODIS": 11499, "VIIRS": 27635, "Harmonized": 27635.0}, {"year": 2022, "month": 1, "MODIS": 13440, "VIIRS": 31743, "Harmonized": 31743.0}, {"year": 2022, "month": 2, "MODIS": 3014, "VIIRS": 10139, "Harmonized": 10139.0}, {"year": 2022, "month": 3, "MODIS": 586, "VIIRS": 3813, "Harmonized": 3813.0}, {"year": 2022, "month": 4, "MODIS": 66, "VIIRS": 3010, "Harmonized": 3010.0}, {"year": 2022, "month": 5, "MODIS": 53, "VIIRS": 1084, "Harmonized": 1084.0}, {"year": 2022, "month": 6, "MODIS": 14, "VIIRS": 150, "Harmonized": 150.0}, {"year": 2022, "month": 7, "MODIS": 25, "VIIRS": 120, "Harmonized": 120.0}, {"year": 2022, "month": 8, "MODIS": 60, "VIIRS": 367, "Harmonized": 367.0}, {"year": 2022, "month": 9, "MODIS": 5, "VIIRS": 146, "Harmonized": 146.0}, {"year": 2022, "month": 10, "MODIS": 146, "VIIRS": 552, "Harmonized": 552.0}, {"year": 2022, "month": 11, "MODIS": 3025, "VIIRS": 9370, "Harmonized": 9370.0}, {"year": 2022, "month": 12, "MODIS": 12693, "VIIRS": 29263, "Harmonized": 29263.0}, {"year": 2023, "month": 1, "MODIS": 8788, "VIIRS": 24956, "Harmonized": 24956.0}, {"year": 2023, "month": 2, "MODIS": 2438, "VIIRS": 9258, "Harmonized": 9258.0}, {"year": 2023, "month": 3, "MODIS": 719, "VIIRS": 6453, "Harmonized": 6453.0}, {"year": 2023, "month": 4, "MODIS": 447, "VIIRS": 2419, "Harmonized": 2419.0}, {"year": 2023, "month": 5, "MODIS": 66, "VIIRS": 935, "Harmonized": 935.0}, {"year": 2023, "month": 6, "MODIS": 9, "VIIRS": 121, "Harmonized": 121.0}, {"year": 2023, "month": 7, "MODIS": 12, "VIIRS": 69, "Harmonized": 69.0}, {"year": 2023, "month": 8, "MODIS": 2, "VIIRS": 150, "Harmonized": 150.0}, {"year": 2023, "month": 9, "MODIS": 25, "VIIRS": 123, "Harmonized": 123.0}, {"year": 2023, "month": 10, "MODIS": 64, "VIIRS": 489, "Harmonized": 489.0}, {"year": 2023, "month": 11, "MODIS": 1641, "VIIRS": 5170, "Harmonized": 5170.0}, {"year": 2023, "month": 12, "MODIS": 11050, "VIIRS": 27204, "Harmonized": 27204.0}, {"year": 2024, "month": 1, "MODIS": 11977, "VIIRS": 30450, "Harmonized": 30450.0}, {"year": 2024, "month": 2, "MODIS": 3766, "VIIRS": 13591, "Harmonized": 13591.0}, {"year": 2024, "month": 3, "MODIS": 963, "VIIRS": 6439, "Harmonized": 6439.0}, {"year": 2024, "month": 4, "MODIS": 474, "VIIRS": 4159, "Harmonized": 4159.0}, {"year": 2024, "month": 5, "MODIS": 159, "VIIRS": 1016, "Harmonized": 1016.0}, {"year": 2024, "month": 6, "MODIS": 16, "VIIRS": 93, "Harmonized": 93.0}, {"year": 2024, "month": 7, "MODIS": 22, "VIIRS": 62, "Harmonized": 62.0}, {"year": 2024, "month": 8, "MODIS": 51, "VIIRS": 259, "Harmonized": 259.0}, {"year": 2024, "month": 9, "MODIS": 98, "VIIRS": 947, "Harmonized": 947.0}, {"year": 2024, "month": 10, "MODIS": 30, "VIIRS": 254, "Harmonized": 254.0}, {"year": 2024, "month": 11, "MODIS": 2587, "VIIRS": 6506, "Harmonized": 6506.0}, {"year": 2024, "month": 12, "MODIS": 13151, "VIIRS": 30385, "Harmonized": 30385.0}, {"year": 2025, "month": 1, "MODIS": 9844, "VIIRS": 27222, "Harmonized": 27222.0}, {"year": 2025, "month": 2, "MODIS": 3102, "VIIRS": 10819, "Harmonized": 10819.0}, {"year": 2025, "month": 3, "MODIS": 780, "VIIRS": 4022, "Harmonized": 4022.0}, {"year": 2025, "month": 4, "MODIS": 676, "VIIRS": 2710, "Harmonized": 2710.0}, {"year": 2025, "month": 5, "MODIS": 160, "VIIRS": 1109, "Harmonized": 1109.0}, {"year": 2025, "month": 6, "MODIS": 8, "VIIRS": 105, "Harmonized": 105.0}, {"year": 2025, "month": 7, "MODIS": 21, "VIIRS": 102, "Harmonized": 102.0}, {"year": 2025, "month": 8, "MODIS": 16, "VIIRS": 187, "Harmonized": 187.0}, {"year": 2025, "month": 9, "MODIS": 35, "VIIRS": 304, "Harmonized": 304.0}, {"year": 2025, "month": 10, "MODIS": 55, "VIIRS": 415, "Harmonized": 415.0}, {"year": 2025, "month": 11, "MODIS": 1340, "VIIRS": 4300, "Harmonized": 4300.0}, {"year": 2025, "month": 12, "MODIS": 4485, "VIIRS": 12928, "Harmonized": 12928.0}, {"year": 2026, "month": 1, "MODIS": 10072, "VIIRS": 30553, "Harmonized": 30553.0}, {"year": 2026, "month": 2, "MODIS": 1937, "VIIRS": 7336, "Harmonized": 7336.0}, {"year": 2026, "month": 3, "MODIS": 591, "VIIRS": 3503, "Harmonized": 3503.0}, {"year": 2026, "month": 4, "MODIS": 268, "VIIRS": 2085, "Harmonized": 2085.0}, {"year": 2026, "month": 5, "MODIS": 91, "VIIRS": 1020, "Harmonized": 1020.0}, {"year": 2026, "month": 6, "MODIS": 5, "VIIRS": 25, "Harmonized": 25.0}, {"year": 2026, "month": 7, "MODIS": 7, "VIIRS": 39, "Harmonized": 39.0}, {"year": 2026, "month": 8, "MODIS": 11, "VIIRS": 99, "Harmonized": 99.0}, {"year": 2026, "month": 9, "MODIS": 17, "VIIRS": 165, "Harmonized": 165.0}, {"year": 2026, "month": 10, "MODIS": 98, "VIIRS": 888, "Harmonized": 888.0}, {"year": 2026, "month": 11, "MODIS": 76, "VIIRS": 330, "Harmonized": 330.0}];
+const META = {"cell_deg": 0.025, "model": "ratio_month", "ratio": 2.8489, "annual_err": 0.0333, "viirs_start": "2012-01-20", "aqua_start": "2002-07-19", "factors": {"1": 2.5878, "2": 3.4483, "3": 5.5565, "4": 7.9038, "5": 9.82, "6": 2.8489, "7": 2.8489, "8": 12.3459, "9": 12.1323, "10": 6.3065, "11": 2.7525, "12": 2.3346}};
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const BINS = [1, 50, 250, 1000, 3000, 8000, 20000];   // lower edges for the 7 colour steps
+const fmt = n => Math.round(n).toLocaleString("en-US");
+let sensor = "Harmonized";
+
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const years = [...new Set(DATA.map(d => d.year))].sort((a, b) => a - b);
+const lookup = {};
+DATA.forEach(d => ["MODIS", "VIIRS", "Harmonized"].forEach(s => lookup[`${s}|${d.year}|${d.month}`] = d[s]));
+const yearTotal = (s, y) => MONTHS.reduce((t, _, i) => t + (lookup[`${s}|${y}|${i + 1}`] || 0), 0);
+const meanOf = (s, a, b) => { let t = 0; for (let y = a; y <= b; y++) t += yearTotal(s, y); return t / (b - a + 1); };
+
+const change = meanOf("Harmonized", 2021, 2025) / meanOf("Harmonized", 2003, 2011) - 1;
+document.getElementById("sub").textContent =
+  `Day 2 check. Grid ${META.cell_deg}°, one correction factor per month, VIIRS as the reference.`;
+document.getElementById("stats").innerHTML = [
+  [META.ratio.toFixed(2) + "×", "VIIRS vs MODIS cell-days (was 3.9× in raw points)"],
+  [(100 * META.annual_err).toFixed(1) + "%", "average yearly error on held-out years"],
+  [(change > 0 ? "+" : "") + Math.round(100 * change) + "%", "activity 2021–25 vs 2003–11"],
+  [MONTHS[DATA.reduce((b, d) => d.Harmonized > b.v ? { v: d.Harmonized, m: d.month } : b, { v: 0 }).m - 1], "peak month"],
+].map(([v, l]) => `<div class="stat"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
+document.getElementById("foot").textContent =
+  `Harmonized = MODIS × monthly factor before ${META.viirs_start} (Terra-only factors before ${META.aqua_start}), ` +
+  `VIIRS S-NPP from then on. Units: VIIRS-equivalent active cell-days. Source: NASA FIRMS. Partial years: 2000 (from Nov), 2026 (to today).`;
+
+document.getElementById("tbl").innerHTML =
+  "<tr><th>Year</th><th>MODIS</th><th>VIIRS</th><th>Harmonized</th></tr>" +
+  years.map(y => `<tr><td>${y}</td><td>${fmt(yearTotal("MODIS", y))}</td><td>${
+    y >= 2012 ? fmt(yearTotal("VIIRS", y)) : "–"}</td><td>${fmt(yearTotal("Harmonized", y))}</td></tr>`).join("");
+
+const cal = echarts.init(document.getElementById("cal"));
+const yrs = echarts.init(document.getElementById("years"));
+const fac = echarts.init(document.getElementById("factors"));
+
+const axisStyle = () => ({
+  axisLine: { lineStyle: { color: css("--axis") } }, axisTick: { show: false },
+  axisLabel: { color: css("--muted") }, splitLine: { lineStyle: { color: css("--grid") } },
+});
+const tooltipStyle = () => ({ backgroundColor: css("--surface"), borderColor: css("--border"),
+  textStyle: { color: css("--ink") }, extraCssText: "border-radius:8px;" });
+
+function drawCalendar() {
+  const seq = css("--seq").split(",").map(s => s.trim());
+  const yList = years.filter(y => sensor !== "VIIRS" || y >= 2012);
+  document.getElementById("calnote").textContent = {
+    Harmonized: "Monthly burning activity, one consistent scale from 2000 to today.",
+    MODIS: "Raw MODIS cell-days. Same colour scale, so it looks paler: MODIS sees fewer fires.",
+    VIIRS: "Raw VIIRS cell-days, 2012 onwards.",
+  }[sensor];
+  const pts = [];
+  yList.forEach((y, yi) => MONTHS.forEach((_, mi) => pts.push([mi, yi, lookup[`${sensor}|${y}|${mi + 1}`] || 0])));
+  const pieces = [{ value: 0, color: css("--zero"), label: "0" }].concat(BINS.map((lo, i) => ({
+    gte: lo, lt: BINS[i + 1], color: seq[i],
+    label: BINS[i + 1] ? `${fmt(lo)}–${fmt(BINS[i + 1] - 1)}` : `${fmt(lo)}+`,
+  })));
+  cal.setOption({
+    tooltip: { ...tooltipStyle(), formatter: p =>
+      `<b>${MONTHS[p.value[0]]} ${yList[p.value[1]]}</b><br>${sensor}: ${fmt(p.value[2])} cell-days` },
+    grid: { left: 48, right: 16, top: 8, bottom: 72 },
+    xAxis: { type: "category", data: MONTHS, ...axisStyle(), splitLine: { show: false } },
+    yAxis: { type: "category", data: yList, inverse: true, ...axisStyle(), splitLine: { show: false } },
+    visualMap: { type: "piecewise", pieces, orient: "horizontal", left: "center", bottom: 0,
+                 itemWidth: 14, itemHeight: 14, itemGap: 10, textStyle: { color: css("--ink-2") } },
+    series: [{ type: "heatmap", data: pts,
+               itemStyle: { borderColor: css("--surface"), borderWidth: 2, borderRadius: 3 },
+               emphasis: { itemStyle: { borderColor: css("--ink"), borderWidth: 2 } } }],
+  }, true);
+}
+
+function drawYears() {
+  // From 2012 the harmonized record IS VIIRS, so VIIRS is drawn dashed on top and only
+  // MODIS and Harmonized get end labels (the legend names all three).
+  const line = (name, color, width) => ({
+    name, type: "line", symbol: "circle", symbolSize: 8, showSymbol: false, z: name === "VIIRS" ? 3 : 2,
+    lineStyle: { width, color, type: name === "VIIRS" ? [6, 4] : "solid" },
+    itemStyle: { color, borderColor: css("--surface"), borderWidth: 2 },
+    data: years.map(y => name === "VIIRS" && y < 2012 ? null : Math.round(yearTotal(name, y))),
+    endLabel: { show: name !== "VIIRS", formatter: name, color: css("--ink-2") },
+  });
+  yrs.setOption({
+    tooltip: { trigger: "axis", ...tooltipStyle(),
+               axisPointer: { type: "line", lineStyle: { color: css("--axis") } },
+               valueFormatter: v => v == null ? "–" : fmt(v) },
+    legend: { top: 0, right: 0, textStyle: { color: css("--ink-2") }, icon: "roundRect" },
+    grid: { left: 56, right: 96, top: 32, bottom: 28 },
+    xAxis: { type: "category", data: years, boundaryGap: false, ...axisStyle(), splitLine: { show: false } },
+    yAxis: { type: "value", ...axisStyle(), axisLine: { show: false },
+             axisLabel: { color: css("--muted"), formatter: v => v >= 1000 ? v / 1000 + "k" : v } },
+    series: [line("MODIS", css("--s1"), 2), line("Harmonized", css("--s3"), 3), line("VIIRS", css("--s2"), 2)],
+  }, true);
+}
+
+function drawFactors() {
+  fac.setOption({
+    tooltip: { ...tooltipStyle(), formatter: p => `<b>${p.name}</b><br>1 MODIS = ${p.value.toFixed(2)} VIIRS cell-days` },
+    grid: { left: 40, right: 16, top: 16, bottom: 28 },
+    xAxis: { type: "category", data: MONTHS, ...axisStyle(), splitLine: { show: false } },
+    yAxis: { type: "value", ...axisStyle(), axisLine: { show: false } },
+    series: [{ type: "bar", barWidth: "55%", data: MONTHS.map((_, i) => META.factors[i + 1]),
+               itemStyle: { color: css("--s3"), borderRadius: [4, 4, 0, 0] },
+               label: { show: true, position: "top", color: css("--ink-2"), formatter: p => p.value.toFixed(1) } }],
+  }, true);
+}
+
+document.querySelectorAll("[data-sensor]").forEach(b => b.addEventListener("click", () => {
+  sensor = b.dataset.sensor;
+  document.querySelectorAll("[data-sensor]").forEach(x => x.setAttribute("aria-pressed", x === b));
+  drawCalendar();
+}));
+
+const redraw = () => { drawCalendar(); drawYears(); drawFactors(); };
+redraw();
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", redraw);
+window.addEventListener("resize", () => { cal.resize(); yrs.resize(); fac.resize(); });
+</script>
+</body>
+</html>

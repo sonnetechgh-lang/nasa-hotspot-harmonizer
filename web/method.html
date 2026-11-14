@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How It Works</title>
+<meta name="description" content="How the Ghana Fire Calendar harmonizes NASA MODIS and VIIRS active-fire hotspots into one record.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23eb6834' d='M12 2c1 3.5-1.5 5-1.5 7.5 0 1.3 1 2.3 2.2 2.3 1.6 0 2.4-1.4 2.1-3.3C17.6 10.4 19 13 19 15.5 19 19.6 15.9 22 12 22s-7-2.4-7-6.5C5 10.4 9.6 7.6 12 2z'/></svg>">
+<link rel="stylesheet" href="styles.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap">
+<style>
+  article { max-width: 720px; margin: 0 auto; padding: 56px 24px 24px; }
+  article h1 { font-size: clamp(34px, 5vw, 52px); font-weight: 700; line-height: 1.06; letter-spacing: -.036em; margin: 8px 0 24px; }
+  article h2 { font-size: 24px; font-weight: 700; letter-spacing: -.026em; margin: 48px 0 10px; }
+  article p, article li { color: var(--ink-2); font-size: 17px; line-height: 1.6; letter-spacing: -.014em; }
+  article p + p { margin-top: 12px; }
+  article ol, article ul { padding-left: 22px; margin: 8px 0 0; }
+  article li + li { margin-top: 10px; }
+  article strong { color: var(--ink); font-weight: 600; }
+  article .tablewrap { margin-top: 20px; }
+  article table { width: auto; min-width: 100%; }
+  .callout { padding: 18px 20px; border-radius: 18px; background: var(--surface); box-shadow: var(--shadow-card); }
+  @media (max-width: 560px) { article { padding: 36px 16px 16px; } article p, article li { font-size: 16px; } }
+</style>
+</head>
+<body>
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="./" aria-label="Ghana Fire Calendar, home">
+      <svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c1 3.5-1.5 5-1.5 7.5 0 1.3 1 2.3 2.2 2.3 1.6 0 2.4-1.4 2.1-3.3C17.6 10.4 19 13 19 15.5 19 19.6 15.9 22 12 22s-7-2.4-7-6.5C5 10.4 9.6 7.6 12 2z"/></svg><span>Ghana Fire Calendar</span>
+    </a>
+    <div class="nav-end" style="margin-left:auto">
+      <a class="nav-link" href="./">Back to the calendar</a>
+      <a class="nav-link" href="/docs">API</a>
+    </div>
+  </div>
+</header>
+<article>
+  <p class="eyebrow">Method</p>
+  <h1>How it works</h1>
+  <p class="callout">The calendar shows <strong>burning activity</strong>: how much fire NASA satellites detected in an area,
+    measured the same way from 2000 to today. It is not a count of individual fires and not burned area.</p>
+
+  <h2>1. The problem: two sensors that don't agree</h2>
+  <p>NASA detects active fires from space with two instruments. <strong>MODIS</strong> (on Terra and Aqua) has watched
+    since 2000 with 1 km pixels. <strong>VIIRS</strong> (on Suomi NPP, from 2012) has 375 m pixels, so it sees more and
+    smaller fires. Over Ghana, VIIRS records about <strong>3.9 times</strong> as many hotspots as MODIS for the same
+    months. Joined naively, the record shows a huge jump in 2012 that has nothing to do with burning. MODIS is also
+    ageing and will end, so a long record must be carried forward by VIIRS.</p>
+
+  <h2>2. What we do</h2>
+  <ol>
+    <li><strong>Same quality rules.</strong> Keep only vegetation fires (no volcanoes, gas flares or factories) with
+      nominal or high confidence. MODIS confidence 0–100 is mapped to low / nominal / high the way FIRMS recommends.</li>
+    <li><strong>Same grid.</strong> Each hotspot is placed in a <span data-m="grid"></span>° grid cell (about
+      <span data-m="gridkm"></span> km). We count <strong>active cell-days</strong>: a cell with at least one fire on a day.
+      Several VIIRS pixels on one fire collapse into one cell, which removes most of the resolution difference.</li>
+    <li><strong>Measure the remaining gap.</strong> From <span data-m="calyears"></span>, both sensors were flying. One
+      MODIS cell-day equals on average <strong><span data-m="ratio"></span></strong> VIIRS cell-days, but the ratio
+      depends on the season (table below): in the main fire season fires are big and both sensors see them; outside it,
+      small fires only VIIRS can see.</li>
+    <li><strong>One record.</strong> Before VIIRS started (<span data-m="viirs"></span>) the calendar uses MODIS × the
+      factor for that month. From then on it uses VIIRS directly. Units: <strong>VIIRS-equivalent active cell-days</strong>.
+      Before Aqua's fire data begins (<span data-m="aqua"></span>) only Terra was flying, so a separate Terra-only
+      factor is used and those months are shown faded as lower confidence.</li>
+  </ol>
+
+  <h2>3. How we chose the method, and how accurate it is</h2>
+  <p>We tried 4 grid sizes and 4 ways of setting the factor (one for all of Ghana, one per month, one per zone, one per
+    zone and month). Each combination was tested by leaving out one year at a time, fitting on the rest, and predicting
+    the missing year's VIIRS activity from MODIS. The winner is the simplest method within half a point of the best:
+    <strong><span data-m="method"></span></strong> on the <span data-m="grid"></span>° grid.</p>
+  <ul>
+    <li>Average error in a year's total: <strong><span data-m="annual"></span></strong></li>
+    <li>Typical error for a single fire-season month: <strong><span data-m="monthly"></span></strong></li>
+    <li>Terra-only period (2000–02), yearly error: <strong><span data-m="terra"></span></strong></li>
+  </ul>
+  <div class="tablewrap"><table id="factors"></table></div>
+
+  <h2>4. Normals, unusual months and seasons</h2>
+  <ul>
+    <li><strong>Normal</strong>: the average for that month over the reference years (all full years by default, or the
+      last 15 years).</li>
+    <li><strong>Usual range</strong>: the middle 80% of those years (10th to 90th percentile). A month outside it is
+      flagged <strong>unusually high ▲</strong> or <strong>unusually low ▼</strong>, but only in months that normally
+      hold at least 1% of the year's burning, so a single fire in the rainy season doesn't raise an alarm.</li>
+    <li><strong>Fire season</strong>: from the date 10% of a normal year's burning has happened to the date 90% has.
+      The "half of burning" window is 25% to 75%. Years start at the quietest point of the year, so a dry season is
+      never split across two rows.</li>
+    <li><strong>Last 30 days</strong>: compared with the same 30 days in every reference year.</li>
+  </ul>
+
+  <h2 id="outlook">5. Outlook: the months ahead</h2>
+  <p>For any area and any period in the next 12 months, the app gives the burning it expects, a likely range, and
+    whether burning is rising or falling. It uses the harmonized record only.</p>
+  <ul>
+    <li><strong>Forecast</strong>: for each month, half of the same month's average over the last 5 years, plus half of
+      the trend line through the last 15 season totals, spread over the year with the usual monthly pattern of the
+      last 10 years. The recent average follows where burning is now; the trend line follows where it is heading.</li>
+    <li><strong>How we chose it</strong>: we made forecasts from every month between 2011 and 2025, for Ghana and each of
+      its 16 regions, using only the data available at the time, and compared them with what happened. The typical
+      error on a 12-month total was about 10%, against about 15% for the long-term normal. Recent averages alone,
+      the trend alone, and adjusting for the last few months were all tried and did no better.</li>
+    <li><strong>Likely range</strong>: from the same test. We take the past forecasts made at this time of year (within
+      a month either side) for the same months ahead, and see how far the truth landed from them. The range covers the
+      middle 80% of those misses.</li>
+    <li><strong>Trend</strong>: the median-of-slopes line through season totals (robust to one odd season), with a
+      Mann-Kendall test. A trend is called "falling" or "rising" only when it is clear (p &lt; 0.05); otherwise it is
+      reported as no clear trend.</li>
+    <li><strong>What it can't see</strong>: the forecast knows only past fires. A very wet or very dry year, a burning ban
+      or land-use change will move burning away from it. In 2025/26, the lowest season on record, actual burning
+      fell well below the range forecast for it.</li>
+  </ul>
+
+  <h2>6. Limits</h2>
+  <ul>
+    <li>Satellites pass about twice a day. Fires that start and end between passes, or burn under thick cloud or smoke,
+      are missed. Single days are noisy; weeks and months are reliable.</li>
+    <li>Off-season months before 2012 multiply small MODIS counts by large factors, so they are less certain. They hold
+      under 5% of a year's burning.</li>
+    <li>June and July have too little MODIS activity for their own factor and use the overall one.</li>
+    <li>The latest weeks use near-real-time data, which is replaced by quality-checked data a few months later.</li>
+  </ul>
+
+  <h2>7. Data</h2>
+  <p>NASA FIRMS: MODIS Collection 6.1 and VIIRS S-NPP 375 m active fire products, standard (archive) and near-real-time.
+    We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS),
+    part of NASA's Earth Science Data and Information System (ESDIS). Ghana boundaries from geoBoundaries.
+    Data currently runs to <strong><span data-m="last"></span></strong>.</p>
+</article>
+<footer class="footer"><div class="container"><p class="footer-links"><a href="./">Calendar</a><a href="/docs">API</a><span>Built for NASA Space Apps 2026</span></p></div></footer>
+<script>
+fetch("/api/meta").then(r => r.json()).then(m => {
+  const h = m.harmonization, p = x => `${(100 * x).toFixed(1)}%`;
+  const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const methods = { ratio: "one factor for all of Ghana", ratio_month: "one factor per calendar month",
+                    ratio_zone: "one factor per zone", ratio_zone_month: "one factor per zone and month" };
+  const vals = {
+    grid: h.grid_deg, gridkm: (h.grid_deg * 111).toFixed(1), calyears: `${h.calibration_years[0]} to ${h.calibration_years[1]}`,
+    ratio: h.overall_ratio.toFixed(2), viirs: h.viirs_start, aqua: h.aqua_start, method: methods[h.method] || h.method,
+    annual: p(h.annual_error), monthly: p(h.peak_month_error), terra: p(h.terra_only_annual_error), last: m.data.last,
+  };
+  document.querySelectorAll("[data-m]").forEach(el => { el.textContent = vals[el.dataset.m]; });
+  document.getElementById("factors").innerHTML =
+    "<tr><th>Month</th>" + MONTHS.map(x => `<th>${x}</th>`).join("") + "</tr>" +
+    "<tr><td>1 MODIS cell-day =</td>" + MONTHS.map((_, i) => `<td>${h.factors_by_month[i + 1].toFixed(1)}</td>`).join("") + "</tr>" +
+    "<tr><td>1 Terra cell-day =</td>" + MONTHS.map((_, i) => `<td>${h.terra_only_factors_by_month[i + 1].toFixed(1)}</td>`).join("") + "</tr>";
+}).catch(() => {});
+</script>
+</body>
+</html>

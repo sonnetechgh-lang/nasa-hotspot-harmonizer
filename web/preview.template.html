@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ghana Fire Preview</title>
+<link rel="icon" href="data:,">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+    --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+    --seq: #cde2fb,#9ec5f4,#6da7ec,#3987e5,#256abf,#184f95,#0d366b;
+    --zero: #f0efec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+      --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+      --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+      --seq: #104281,#184f95,#1c5cab,#256abf,#3987e5,#6da7ec,#b7d3f6;
+      --zero: #232322;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+    --seq: #104281,#184f95,#1c5cab,#256abf,#3987e5,#6da7ec,#b7d3f6;
+    --zero: #232322;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--ink-2); margin: 0 0 20px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+          padding: 16px; margin-bottom: 16px; }
+  .card h2 { font-size: 16px; margin: 0 0 2px; }
+  .card p { color: var(--ink-2); margin: 0 0 12px; font-size: 14px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; background: transparent; color: var(--ink-2); padding: 6px 12px;
+                font: inherit; font-size: 14px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+  .chart { width: 100%; height: 620px; }
+  .chart.short { height: 340px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;
+           margin-bottom: 16px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .stat .v { font-size: 26px; font-weight: 600; }
+  .stat .l { color: var(--ink-2); font-size: 13px; }
+  details { margin-top: 8px; }
+  summary { cursor: pointer; color: var(--ink-2); font-size: 14px; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; margin-top: 8px; }
+  th, td { padding: 4px 10px; text-align: right; border-bottom: 1px solid var(--grid); }
+  th:first-child, td:first-child { text-align: left; }
+  .note { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Ghana burning activity: harmonized preview</h1>
+  <p class="sub" id="sub"></p>
+
+  <div class="stats" id="stats"></div>
+
+  <section class="card">
+    <h2>Burning activity calendar</h2>
+    <p id="calnote"></p>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Record">
+        <button data-sensor="Harmonized" aria-pressed="true">Harmonized</button>
+        <button data-sensor="MODIS" aria-pressed="false">MODIS raw</button>
+        <button data-sensor="VIIRS" aria-pressed="false">VIIRS raw</button>
+      </div>
+    </div>
+    <div id="cal" class="chart" role="img" aria-label="Calendar heatmap of monthly burning activity"></div>
+  </section>
+
+  <section class="card">
+    <h2>Burning activity per year</h2>
+    <p>Active cell-days (a 0.025° cell with fire on a day). Raw MODIS and VIIRS disagree by about 3×; the harmonized record joins them without a jump at 2012.</p>
+    <div id="years" class="chart short" role="img" aria-label="Line chart of yearly activity: MODIS, VIIRS, harmonized"></div>
+    <details>
+      <summary>Show table</summary>
+      <div class="tablewrap"><table id="tbl"></table></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2>Correction factor by month</h2>
+    <p>How many VIIRS cell-days one MODIS cell-day equals. Lower in the main fire season (big fires both sensors see), higher in the off-season (small fires only VIIRS catches).</p>
+    <div id="factors" class="chart short" role="img" aria-label="Bar chart of monthly correction factors"></div>
+  </section>
+  <p class="note" id="foot"></p>
+</main>
+<script>
+const DATA = /*DATA*/null;
+const META = /*META*/null;
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const BINS = [1, 50, 250, 1000, 3000, 8000, 20000];   // lower edges for the 7 colour steps
+const fmt = n => Math.round(n).toLocaleString("en-US");
+let sensor = "Harmonized";
+
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const years = [...new Set(DATA.map(d => d.year))].sort((a, b) => a - b);
+const lookup = {};
+DATA.forEach(d => ["MODIS", "VIIRS", "Harmonized"].forEach(s => lookup[`${s}|${d.year}|${d.month}`] = d[s]));
+const yearTotal = (s, y) => MONTHS.reduce((t, _, i) => t + (lookup[`${s}|${y}|${i + 1}`] || 0), 0);
+const meanOf = (s, a, b) => { let t = 0; for (let y = a; y <= b; y++) t += yearTotal(s, y); return t / (b - a + 1); };
+
+const change = meanOf("Harmonized", 2021, 2025) / meanOf("Harmonized", 2003, 2011) - 1;
+document.getElementById("sub").textContent =
+  `Day 2 check. Grid ${META.cell_deg}°, one correction factor per month, VIIRS as the reference.`;
+document.getElementById("stats").innerHTML = [
+  [META.ratio.toFixed(2) + "×", "VIIRS vs MODIS cell-days (was 3.9× in raw points)"],
+  [(100 * META.annual_err).toFixed(1) + "%", "average yearly error on held-out years"],
+  [(change > 0 ? "+" : "") + Math.round(100 * change) + "%", "activity 2021–25 vs 2003–11"],
+  [MONTHS[DATA.reduce((b, d) => d.Harmonized > b.v ? { v: d.Harmonized, m: d.month } : b, { v: 0 }).m - 1], "peak month"],
+].map(([v, l]) => `<div class="stat"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
+document.getElementById("foot").textContent =
+  `Harmonized = MODIS × monthly factor before ${META.viirs_start} (Terra-only factors before ${META.aqua_start}), ` +
+  `VIIRS S-NPP from then on. Units: VIIRS-equivalent active cell-days. Source: NASA FIRMS. Partial years: 2000 (from Nov), 2026 (to today).`;
+
+document.getElementById("tbl").innerHTML =
+  "<tr><th>Year</th><th>MODIS</th><th>VIIRS</th><th>Harmonized</th></tr>" +
+  years.map(y => `<tr><td>${y}</td><td>${fmt(yearTotal("MODIS", y))}</td><td>${
+    y >= 2012 ? fmt(yearTotal("VIIRS", y)) : "–"}</td><td>${fmt(yearTotal("Harmonized", y))}</td></tr>`).join("");
+
+const cal = echarts.init(document.getElementById("cal"));
+const yrs = echarts.init(document.getElementById("years"));
+const fac = echarts.init(document.getElementById("factors"));
+
+const axisStyle = () => ({
+  axisLine: { lineStyle: { color: css("--axis") } }, axisTick: { show: false },
+  axisLabel: { color: css("--muted") }, splitLine: { lineStyle: { color: css("--grid") } },
+});
+const tooltipStyle = () => ({ backgroundColor: css("--surface"), borderColor: css("--border"),
+  textStyle: { color: css("--ink") }, extraCssText: "border-radius:8px;" });
+
+function drawCalendar() {
+  const seq = css("--seq").split(",").map(s => s.trim());
+  const yList = years.filter(y => sensor !== "VIIRS" || y >= 2012);
+  document.getElementById("calnote").textContent = {
+    Harmonized: "Monthly burning activity, one consistent scale from 2000 to today.",
+    MODIS: "Raw MODIS cell-days. Same colour scale, so it looks paler: MODIS sees fewer fires.",
+    VIIRS: "Raw VIIRS cell-days, 2012 onwards.",
+  }[sensor];
+  const pts = [];
+  yList.forEach((y, yi) => MONTHS.forEach((_, mi) => pts.push([mi, yi, lookup[`${sensor}|${y}|${mi + 1}`] || 0])));
+  const pieces = [{ value: 0, color: css("--zero"), label: "0" }].concat(BINS.map((lo, i) => ({
+    gte: lo, lt: BINS[i + 1], color: seq[i],
+    label: BINS[i + 1] ? `${fmt(lo)}–${fmt(BINS[i + 1] - 1)}` : `${fmt(lo)}+`,
+  })));
+  cal.setOption({
+    tooltip: { ...tooltipStyle(), formatter: p =>
+      `<b>${MONTHS[p.value[0]]} ${yList[p.value[1]]}</b><br>${sensor}: ${fmt(p.value[2])} cell-days` },
+    grid: { left: 48, right: 16, top: 8, bottom: 72 },
+    xAxis: { type: "category", data: MONTHS, ...axisStyle(), splitLine: { show: false } },
+    yAxis: { type: "category", data: yList, inverse: true, ...axisStyle(), splitLine: { show: false } },
+    visualMap: { type: "piecewise", pieces, orient: "horizontal", left: "center", bottom: 0,
+                 itemWidth: 14, itemHeight: 14, itemGap: 10, textStyle: { color: css("--ink-2") } },
+    series: [{ type: "heatmap", data: pts,
+               itemStyle: { borderColor: css("--surface"), borderWidth: 2, borderRadius: 3 },
+               emphasis: { itemStyle: { borderColor: css("--ink"), borderWidth: 2 } } }],
+  }, true);
+}
+
+function drawYears() {
+  // From 2012 the harmonized record IS VIIRS, so VIIRS is drawn dashed on top and only
+  // MODIS and Harmonized get end labels (the legend names all three).
+  const line = (name, color, width) => ({
+    name, type: "line", symbol: "circle", symbolSize: 8, showSymbol: false, z: name === "VIIRS" ? 3 : 2,
+    lineStyle: { width, color, type: name === "VIIRS" ? [6, 4] : "solid" },
+    itemStyle: { color, borderColor: css("--surface"), borderWidth: 2 },
+    data: years.map(y => name === "VIIRS" && y < 2012 ? null : Math.round(yearTotal(name, y))),
+    endLabel: { show: name !== "VIIRS", formatter: name, color: css("--ink-2") },
+  });
+  yrs.setOption({
+    tooltip: { trigger: "axis", ...tooltipStyle(),
+               axisPointer: { type: "line", lineStyle: { color: css("--axis") } },
+               valueFormatter: v => v == null ? "–" : fmt(v) },
+    legend: { top: 0, right: 0, textStyle: { color: css("--ink-2") }, icon: "roundRect" },
+    grid: { left: 56, right: 96, top: 32, bottom: 28 },
+    xAxis: { type: "category", data: years, boundaryGap: false, ...axisStyle(), splitLine: { show: false } },
+    yAxis: { type: "value", ...axisStyle(), axisLine: { show: false },
+             axisLabel: { color: css("--muted"), formatter: v => v >= 1000 ? v / 1000 + "k" : v } },
+    series: [line("MODIS", css("--s1"), 2), line("Harmonized", css("--s3"), 3), line("VIIRS", css("--s2"), 2)],
+  }, true);
+}
+
+function drawFactors() {
+  fac.setOption({
+    tooltip: { ...tooltipStyle(), formatter: p => `<b>${p.name}</b><br>1 MODIS = ${p.value.toFixed(2)} VIIRS cell-days` },
+    grid: { left: 40, right: 16, top: 16, bottom: 28 },
+    xAxis: { type: "category", data: MONTHS, ...axisStyle(), splitLine: { show: false } },
+    yAxis: { type: "value", ...axisStyle(), axisLine: { show: false } },
+    series: [{ type: "bar", barWidth: "55%", data: MONTHS.map((_, i) => META.factors[i + 1]),
+               itemStyle: { color: css("--s3"), borderRadius: [4, 4, 0, 0] },
+               label: { show: true, position: "top", color: css("--ink-2"), formatter: p => p.value.toFixed(1) } }],
+  }, true);
+}
+
+document.querySelectorAll("[data-sensor]").forEach(b => b.addEventListener("click", () => {
+  sensor = b.dataset.sensor;
+  document.querySelectorAll("[data-sensor]").forEach(x => x.setAttribute("aria-pressed", x === b));
+  drawCalendar();
+}));
+
+const redraw = () => { drawCalendar(); drawYears(); drawFactors(); };
+redraw();
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", redraw);
+window.addEventListener("resize", () => { cal.resize(); yrs.resize(); fac.resize(); });
+</script>
+</body>
+</html>
