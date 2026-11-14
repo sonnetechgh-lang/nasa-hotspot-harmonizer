@@ -3,7 +3,7 @@ name: CI/CD
 on:
   push:
     branches: [main]
-    paths-ignore: ["**.md", "LICENSE", "reports/**"]
+    paths-ignore: ["**.md", "LICENSE", "reports/**", "docs/**"]
   pull_request:
   workflow_dispatch:
 

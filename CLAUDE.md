@@ -52,7 +52,9 @@ harmonized MODIS + VIIRS active-fire hotspots (2000 to today). Full plan and tim
 - New findings: 2025/26 was the lowest season on record (−38%), below normal in all 16 regions;
   season moves north → south (Upper East peak ~23 Nov, Central ~18 Apr); Savannah, Northern,
   Bono East and Bono = 68% of the national drop.
-- **Next:** browser check of the live site (desktop + phone), then slides (5–7) and the 30-second demo video.
+- Slides ✅ (14 Nov): 7-slide deck (claude.ai artifact 9z1a6VKzAQypSNmx2qWbn1, private) exported to
+  `docs/ghana-fire-calendar-slides.pdf` = the public demo link for the submission.
+- **Next:** browser check of the live site (desktop + phone); optional 30-second video.
 - The user asked to always use the caveman MCP tools in this project: compress large tool output
   with `caveman_compress`, recover trimmed output with `caveman_retrieve` instead of re-running.
 
