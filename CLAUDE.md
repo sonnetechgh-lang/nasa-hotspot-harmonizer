@@ -35,6 +35,7 @@ harmonized MODIS + VIIRS active-fire hotspots (2000 to today). Full plan and tim
   `/api/districts` serves simplified outlines. Picker groups districts under each region; map shows the selected
   region's districts (drill down), all of them at zoom ≥ 9.5. Regions compare/animation stay region-level. 49 tests.
   User rejected a topic colour scheme + coloured icon tiles: keep the neutral look.
+- GitHub ✅ (14 Nov): public repo https://github.com/sonnetechgh-lang/nasa-hotspot-harmonizer (MIT, data/ not committed).
 - **Next: Day 6** deploy to the user's VPS (nginx + systemd + HTTPS + daily data refresh:
   download → normalize → grid; recalibrate only on purpose), GitHub repo, slides, demo video.
 - The user's own server often runs on port 8000 (started from VS Code). Don't kill it; test on 8001.
