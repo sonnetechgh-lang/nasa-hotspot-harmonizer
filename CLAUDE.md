@@ -43,7 +43,10 @@ harmonized MODIS + VIIRS active-fire hotspots (2000 to today). Full plan and tim
   Pipeline writes are atomic (tmp + os.replace). Never disturb the other apps or their containers.
 - **LIVE** ✅ (14 Nov): https://harmonizer.10xvibecode.org (own domain, not sonnetghana.com = client sites).
   Caddyfile backed up before edit (`Caddyfile.bak-*`); edit it in place (bind-mounted single file), validate first.
-  Refresh tested end to end (1.5 min). Deploy code: `cd /opt/apps/hotspots && git pull && docker compose up -d --build`.
+  Refresh tested end to end (1.5 min).
+- CI/CD ✅ (14 Nov): push to main → GitHub Actions (tests + docker build) → SSH deploy key locked to
+  `deploy/deploy.sh` (waits for refresh, rebuild, health check, rollback). `.md`-only pushes don't deploy.
+  Don't reuse /opt/actions-runner on the VPS (belongs to JoysamFarms; self-hosted runner + public repo = unsafe).
 - **Next:** browser check of the live site, then slides, demo video.
 - The user's own server often runs on port 8000 (started from VS Code). Don't kill it; test on 8001.
 - New findings: 2025/26 was the lowest season on record (−38%), below normal in all 16 regions;

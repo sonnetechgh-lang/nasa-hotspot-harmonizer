@@ -67,7 +67,7 @@ systemctl list-timers hotspots-refresh.timer
 
 | Task | Command (in `/opt/apps/hotspots`) |
 |---|---|
-| Deploy new code (after `git push`) | `git pull && docker compose up -d --build` |
+| Deploy new code | automatic: push to `main` → GitHub Actions runs tests + Docker build, then SSHs in and runs `deploy/deploy.sh` (rebuild, health check, rollback if unhealthy). By hand: `bash deploy/deploy.sh` |
 | Refresh data now | `systemctl start hotspots-refresh.service` |
 | Refresh log | `journalctl -u hotspots-refresh -n 50` |
 | App log | `docker logs -f hotspots_app` |
@@ -76,3 +76,13 @@ systemctl list-timers hotspots-refresh.timer
 If a refresh step fails, the app keeps serving yesterday's data and nothing restarts. New files are written to a
 temp name and swapped in, so the live app never reads a half-written file. During the restart Caddy holds
 requests (up to 30 s) instead of failing them.
+
+## CI/CD (GitHub Actions, `.github/workflows/ci-cd.yml`)
+
+- Every push and pull request: unit tests (API tests skip, no data in git) and a Docker build.
+- Push to `main` (not docs-only changes): deploy job, environment `production`, one at a time.
+- Secrets: `VPS_SSH_KEY` (deploy key), `VPS_KNOWN_HOSTS` (server host keys), `VPS_HOST`.
+- The deploy key in `/root/.ssh/authorized_keys` is locked with `command="/opt/apps/hotspots/deploy/deploy.sh",restrict`:
+  it can only run the deploy script, with no shell, port forwarding or other commands.
+  To revoke it, delete the line ending in `github-actions-deploy@nasa-hotspot-harmonizer`.
+- `deploy.sh` waits for a running data refresh, so a deploy never interrupts one.
