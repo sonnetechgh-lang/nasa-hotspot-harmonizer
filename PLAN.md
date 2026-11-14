@@ -157,7 +157,7 @@ Keys go in a `.env` file that is **never committed** to Git.
 
 ```
 nasa-hotspot-harmonizer/
-├── PLAN.md, README.md, CLAUDE.md, LICENSE (MIT)
+├── PLAN.md, README.md, NOTES.md, LICENSE (MIT)
 ├── .env.example            # FIRMS_MAP_KEY placeholder (.env is never committed)
 ├── requirements.txt        # pinned versions
 ├── Dockerfile, compose.yml # the container that runs on the VPS

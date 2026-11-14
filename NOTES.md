@@ -1,4 +1,4 @@
-# CLAUDE.md
+# Project notes
 
 NASA Space Apps 2026 entry, challenge *Harmonization of MODIS and VIIRS Hot Spots*.
 Solo entrant. Study area: Ghana only. Registration deadline 15 Nov 2026.
