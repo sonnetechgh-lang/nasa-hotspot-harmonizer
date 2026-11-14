@@ -41,8 +41,10 @@ harmonized MODIS + VIIRS active-fire hotspots (2000 to today). Full plan and tim
   Spaceship). So: `Dockerfile` + `compose.yml` (container `hotspots_app`, in `/opt/apps/hotspots`),
   `deploy/Caddyfile.snippet`, host timer `deploy/hotspots-refresh.*` (docker exec refresh.sh, then restart).
   Pipeline writes are atomic (tmp + os.replace). Never disturb the other apps or their containers.
-- **Next: Day 6** run the deploy on the user's VPS (nginx + systemd + HTTPS + daily data refresh:
-  download → normalize → grid; recalibrate only on purpose), then slides, demo video.
+- **LIVE** ✅ (14 Nov): https://harmonizer.10xvibecode.org (own domain, not sonnetghana.com = client sites).
+  Caddyfile backed up before edit (`Caddyfile.bak-*`); edit it in place (bind-mounted single file), validate first.
+  Refresh tested end to end (1.5 min). Deploy code: `cd /opt/apps/hotspots && git pull && docker compose up -d --build`.
+- **Next:** browser check of the live site, then slides, demo video.
 - The user's own server often runs on port 8000 (started from VS Code). Don't kill it; test on 8001.
 - New findings: 2025/26 was the lowest season on record (−38%), below normal in all 16 regions;
   season moves north → south (Upper East peak ~23 Nov, Central ~18 Apr); Savannah, Northern,

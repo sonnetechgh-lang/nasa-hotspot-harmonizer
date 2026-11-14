@@ -9,10 +9,10 @@ visitor ──HTTPS──> caddy (Let's Encrypt) ──> hotspots_app:8000 (Dock
 hotspots-refresh.timer (host, daily 06:17 UTC) ─────┘  docker exec refresh.sh → docker restart
 ```
 
-## 1. DNS (Spaceship)
+## 1. DNS (Spaceship, 10xvibecode.org)
 
-Add an `A` record `fires` → `187.7.21.43` (same as the other subdomains). Wait until
-`nslookup fires.sonnetghana.com` returns that IP before step 4, or Caddy can't get a certificate.
+Add an `A` record `harmonizer` → `187.7.21.43` (TTL 60 s). Wait until
+`nslookup harmonizer.10xvibecode.org` returns that IP before step 4, or Caddy can't get a certificate.
 
 ## 2. Code + data
 
@@ -52,7 +52,7 @@ cp /opt/apps/proxy/Caddyfile /opt/apps/proxy/Caddyfile.bak-$(date +%F)
 cat deploy/Caddyfile.snippet | sed '/^#/d' >> /opt/apps/proxy/Caddyfile
 docker exec caddy caddy validate --config /etc/caddy/Caddyfile
 docker exec caddy caddy reload --config /etc/caddy/Caddyfile
-curl -s https://fires.sonnetghana.com/api/health
+curl -s https://harmonizer.10xvibecode.org/api/health
 ```
 
 ## 5. Daily refresh
