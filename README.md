@@ -40,6 +40,11 @@ Interactive docs: http://127.0.0.1:8000/docs
 | `GET/POST /api/daily?year=` | Daily activity for one year next to the normal for each day |
 | `GET/POST /api/hotspots?year=&month=` | Hotspots for the map (most intense first) |
 | `GET/POST /api/export.csv` | Monthly table with normals and flags |
+| `GET /api/districts` | 260 district outlines (simplified GeoJSON); any district name works as `region=` |
+| `GET/POST /api/forecast?start=&end=` | Harmonized outlook for the next 12 months (`YYYY-MM`) with a backtested range and trend test |
+| `GET /api/compare` | All 16 regions compared: season timing and change vs normal |
+| `GET /api/animation?season=` | Weekly 0.2° grid for the ▶ Play season map (`normal` or a fire year) |
+| `GET /api/health` | `{"ok": true, "data_last_day": ...}` |
 
 Area: `region=Northern` (or `Ghana`), `bbox=west,south,east,north`, or a GeoJSON `geometry` in a POST body.
 Options: `sensor=harmonized|modis|viirs`, `ref=2011-2025` (years used for normals; default all full years).
@@ -51,7 +56,7 @@ Options: `sensor=harmonized|modis|viirs`, `ref=2011-2025` (years used for normal
 | MODIS Nov 2000 – Dec 2025, VIIRS S-NPP Jan 2012 – Dec 2025 | NASA FIRMS yearly country files (standard product) |
 | 2026 until standard data ends | NASA FIRMS area API, `MODIS_SP` / `VIIRS_SNPP_SP` |
 | After that, until today | NASA FIRMS area API, `MODIS_NRT` / `VIIRS_SNPP_NRT` |
-| Ghana border and 16 regions | geoBoundaries (gbOpen, ADM0 / ADM1) |
+| Ghana border, 16 regions, 260 districts | geoBoundaries (gbOpen, ADM0 / ADM1 / ADM2) |
 
 We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management
 System (FIRMS), part of NASA's Earth Science Data and Information System (ESDIS).
@@ -65,7 +70,8 @@ conf_class (low|nominal|high), frp (MW), brightness_k, scan, track, daynight, fi
 
 ## Deploy
 
-Docker container behind Caddy on the VPS, with a daily data refresh: see [deploy/DEPLOY.md](deploy/DEPLOY.md).
+Docker container behind Caddy on the VPS, with a daily data refresh at 06:17 UTC. Every push to `main`
+runs the tests and a Docker build on GitHub Actions, then deploys automatically. See [deploy/DEPLOY.md](deploy/DEPLOY.md).
 
 ## License
 

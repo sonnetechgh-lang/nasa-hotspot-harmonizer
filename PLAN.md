@@ -13,7 +13,7 @@
 
 | Requirement from the challenge | How we meet it |
 |---|---|
-| Web application | FastAPI backend + browser front end, hosted on your VPS |
+| Web application | FastAPI backend + browser front end, live at https://harmonizer.10xvibecode.org |
 | Harmonize records across sensors | Common grid + quality filters + calibration over the 2012–present overlap, giving one continuous record from 2000 to now (section 4) |
 | Burning activity calendar | Heatmaps of year × month and year × day for the selected area |
 | Historical fire patterns | 20+ years of data (MODIS since Nov 2000, VIIRS since 2012) |
@@ -53,8 +53,9 @@ If you plot the raw counts, burning seems to jump in 2012. That's only because V
 | Calendar & charts | **Apache ECharts** | Has a built-in calendar heatmap, plus line and band charts for the "normal vs. this year" view. One library covers all the charts. |
 | Front end | **Plain HTML + JS (no build step)** | Quickest for one person and easy to host. Nothing to compile. |
 | Analysis | **Jupyter Notebook + matplotlib** | Testing calibration settings and making figures for the slides. |
-| Hosting | **Your VPS + nginx + systemd** | You already run apps there. nginx serves the site and forwards API calls to uvicorn. |
-| HTTPS | **Let's Encrypt (certbot)** | Free certificate so judges get a secure link. |
+| Hosting | **Your VPS: Docker container behind the existing Caddy proxy** | The VPS already runs client apps behind a shared Caddy container on ports 80/443, so this app joins it as one more container (`hotspots_app`, network `proxy`) instead of adding nginx. Own domain (10xvibecode.org), kept apart from the sonnetghana.com client sites. Cloudflare's free tier can't run this backend (no DuckDB, 10 ms CPU limit). |
+| HTTPS | **Caddy (automatic Let's Encrypt)** | Caddy gets and renews the certificate on its own. |
+| CI/CD | **GitHub Actions** | Push to `main` → tests + Docker build → SSH deploy (key locked to `deploy/deploy.sh`) with health check and rollback. |
 | Version control | **Git + GitHub (public repo)** | Git is installed. Judges expect a public repo. |
 
 ---
@@ -156,32 +157,34 @@ Keys go in a `.env` file that is **never committed** to Git.
 
 ```
 nasa-hotspot-harmonizer/
-├── PLAN.md
-├── README.md
-├── .env.example            # FIRMS_MAP_KEY placeholder
-├── requirements.txt
-├── data/                   # not committed to Git
-│   ├── raw/                # downloaded archive CSVs
-│   └── processed/          # hotspots.parquet, grid_daily.parquet
+├── PLAN.md, README.md, CLAUDE.md, LICENSE (MIT)
+├── .env.example            # FIRMS_MAP_KEY placeholder (.env is never committed)
+├── requirements.txt        # pinned versions
+├── Dockerfile, compose.yml # the container that runs on the VPS
+├── .github/workflows/ci-cd.yml   # tests + Docker build, then deploy on push to main
+├── data/                   # not committed to Git (~440 MB)
+│   ├── raw/                # yearly archive CSVs, API CSVs, geoBoundaries ADM0/1/2
+│   └── processed/          # hotspots, grid_daily, monthly_harmonized (.parquet), calibration.json
 ├── pipeline/
-│   ├── download.py         # archive + NRT fetch
+│   ├── config.py           # paths, study area, .env reader
+│   ├── download.py         # archive + NRT fetch, boundaries
 │   ├── normalize.py        # shared format, type/confidence filters
-│   ├── grid.py             # snap to 0.01° grid, cell-day counts
-│   ├── calibrate.py        # overlap regression → scale factors
-│   └── climatology.py      # normals, percentiles, critical periods
+│   ├── grid.py             # snap to 0.025° grid, cell-day counts
+│   ├── calibrate.py        # overlap testing → monthly scale factors
+│   ├── climatology.py      # normals, unusual months, season dates
+│   └── forecast.py         # 12-month outlook + backtest
 ├── api/
-│   └── main.py             # FastAPI: /calendar /climatology /hotspots /export
+│   ├── main.py             # FastAPI endpoints, serves web/
+│   ├── store.py            # DuckDB over the grid
+│   └── area.py             # regions, districts, drawn areas → grid cells
 ├── web/
-│   ├── index.html          # map + calendar + charts
-│   ├── app.js
-│   └── method.html         # how it works + data credits
-├── notebooks/
-│   └── calibration.ipynb   # checks + slide figures
-├── deploy/
-│   ├── nginx.conf
-│   └── harmonizer.service  # systemd unit
-└── tests/
-    └── test_pipeline.py
+│   ├── index.html, app.js, styles.css   # map + calendar + charts
+│   ├── method.html         # how it works + data credits
+│   └── preview.html        # Day 2 check page (scripts/preview.py)
+├── scripts/                # findings.py → reports/findings.md, preview.py
+├── reports/findings.md
+├── deploy/                 # DEPLOY.md, deploy.sh, refresh.sh, refresh timer, Caddyfile.snippet
+└── tests/                  # 49 tests (API tests skip without data/)
 ```
 
 ---
@@ -196,7 +199,9 @@ nasa-hotspot-harmonizer/
 | Day 3 ✅ | `climatology.py` + FastAPI endpoints | Done 4 Nov: calendar, normals, unusual months, season dates, fire-year summaries, last-30-days status, hotspots, CSV export for any region / box / polygon; < 1 s per request; 32 tests pass |
 | Day 4 ✅ | Front end: map, area drawing, calendar heatmap, sensor toggle | Done 5 Nov: `web/index.html` + `app.js` + `styles.css` + `method.html`; region picker, map click, polygon/box drawing, fire-year calendar with unusual-month outlines, season vs normal, season totals, daily calendar, hotspot drill-down, CSV export, shareable links, light/dark, phone layout |
 | Day 5 ✅ | Regions compared panel, findings report, edge cases | Done 5 Nov: `/api/compare` (warmed up at startup), "Regions compared" card (season timeline + change by region + table), `reports/findings.md` via `scripts/findings.py`, low-activity rule for tiny areas; 34 tests pass |
-| Day 6 | Deploy to VPS with HTTPS, README, slides, 30-second video | Live link + submission package |
+| Day 5+ ✅ | Front-end upgrade, Outlook, redesign, districts | Done 5–9 Nov: headline findings, "One record from two sensors" chart, map modes incl. ▶ Play season; `/api/forecast` + Outlook card (12-month error ~10% vs ~15% for the normal); Apple-style redesign; 260 districts anywhere a region works; 49 tests pass |
+| Day 6 ✅ | GitHub, deploy with HTTPS, CI/CD | Done 14 Nov: public repo (MIT); live at https://harmonizer.10xvibecode.org (Docker behind Caddy); daily data refresh 06:17 UTC; push to `main` deploys automatically |
+| Day 7 | Browser check of the live site, slides, 30-second video | Submission package |
 | Event weekend | Final polish and submit | Submitted on spaceappschallenge.org |
 
 Event dates still need to be confirmed on the Space Apps site. Move the days to fit.

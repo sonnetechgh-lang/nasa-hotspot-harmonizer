@@ -2,10 +2,11 @@
 
 NASA Space Apps 2026 entry, challenge *Harmonization of MODIS and VIIRS Hot Spots*.
 Solo entrant. Study area: Ghana only. Registration deadline 15 Nov 2026.
+Live: https://harmonizer.10xvibecode.org · Repo: https://github.com/sonnetechgh-lang/nasa-hotspot-harmonizer
 Goal: a web app with a **burning activity calendar** for any area of Ghana, built from
 harmonized MODIS + VIIRS active-fire hotspots (2000 to today). Full plan and timeline: `PLAN.md`.
 
-## Status (as of 4 Nov 2026)
+## Status (as of 14 Nov 2026)
 
 - Day 1 ✅ data download + normalize → `data/processed/hotspots.parquet` (4.2M hotspots)
 - Day 2 ✅ grid + calibration → 0.025° grid, one factor per month, VIIRS as reference, 3.3% yearly error
@@ -47,11 +48,11 @@ harmonized MODIS + VIIRS active-fire hotspots (2000 to today). Full plan and tim
 - CI/CD ✅ (14 Nov): push to main → GitHub Actions (tests + docker build) → SSH deploy key locked to
   `deploy/deploy.sh` (waits for refresh, rebuild, health check, rollback). `.md`-only pushes don't deploy.
   Don't reuse /opt/actions-runner on the VPS (belongs to JoysamFarms; self-hosted runner + public repo = unsafe).
-- **Next:** browser check of the live site, then slides, demo video.
 - The user's own server often runs on port 8000 (started from VS Code). Don't kill it; test on 8001.
 - New findings: 2025/26 was the lowest season on record (−38%), below normal in all 16 regions;
   season moves north → south (Upper East peak ~23 Nov, Central ~18 Apr); Savannah, Northern,
   Bono East and Bono = 68% of the national drop.
+- **Next:** browser check of the live site (desktop + phone), then slides (5–7) and the 30-second demo video.
 - The user asked to always use the caveman MCP tools in this project: compress large tool output
   with `caveman_compress`, recover trimmed output with `caveman_retrieve` instead of re-running.
 
@@ -65,7 +66,13 @@ harmonized MODIS + VIIRS active-fire hotspots (2000 to today). Full plan and tim
 .\.venv\Scripts\python -m pytest -q -p no:warnings tests
 .\.venv\Scripts\uvicorn api.main:app --port 8000   # docs at /docs, web files served at /
 .\.venv\Scripts\python scripts\preview.py          # web/preview.html (Day 2 check page)
+git push                                           # main → GitHub Actions tests, then auto-deploys to the VPS
+gh run list --limit 3                              # deploy status
 ```
+
+On the VPS (`ssh root@187.7.21.43`, app in `/opt/apps/hotspots`): `docker logs -f hotspots_app`,
+`systemctl start hotspots-refresh.service` (refresh now), `journalctl -u hotspots-refresh -n 50`,
+`bash deploy/deploy.sh` (manual deploy). Full guide: `deploy/DEPLOY.md`.
 
 ## Key design decisions
 
@@ -86,6 +93,8 @@ harmonized MODIS + VIIRS active-fire hotspots (2000 to today). Full plan and tim
 - pandas 3: "no flag" values come back as NaN, not None (API `clean()` converts).
 - PowerShell mangles inline Python with `*` or quotes; use Bash heredocs for ad-hoc scripts.
 - A "caveman" hook trims long command output ("sections elided (caveman)"); print short output.
-- Keys live in `.env` (FIRMS_MAP_KEY, Earthdata login). Never print or commit them.
+- Keys live in `.env` (FIRMS_MAP_KEY, Earthdata login). Never print or commit them. The VPS `.env` holds only
+  FIRMS_MAP_KEY + COUNTRY_CODE. GitHub secrets: VPS_SSH_KEY, VPS_KNOWN_HOSTS, VPS_HOST.
+- `.pytest_cache/` on this PC is owned by another account (access denied); it's ignored, leave it.
 - Charts follow the dataviz guidance: categorical MODIS blue / VIIRS orange / Harmonized aqua,
   single-hue blue ramp for the calendar, light + dark themes, table view for every chart.
