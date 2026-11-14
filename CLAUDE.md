@@ -53,7 +53,9 @@ harmonized MODIS + VIIRS active-fire hotspots (2000 to today). Full plan and tim
   season moves north → south (Upper East peak ~23 Nov, Central ~18 Apr); Savannah, Northern,
   Bono East and Bono = 68% of the national drop.
 - Slides ✅ (14 Nov): 7-slide deck (claude.ai artifact 9z1a6VKzAQypSNmx2qWbn1, private) exported to
-  `docs/ghana-fire-calendar-slides.pdf` = the public demo link for the submission.
+  `docs/ghana-fire-calendar-slides.pdf`, served by GitHub Pages (main /docs) at
+  https://sonnetechgh-lang.github.io/nasa-hotspot-harmonizer/ghana-fire-calendar-slides.pdf = the submission
+  demo link (GitHub's blob viewer failed to render it). To update: re-export PDF, replace the file, push.
 - **Next:** browser check of the live site (desktop + phone); optional 30-second video.
 - The user asked to always use the caveman MCP tools in this project: compress large tool output
   with `caveman_compress`, recover trimmed output with `caveman_retrieve` instead of re-running.

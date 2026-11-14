@@ -1,6 +1,6 @@
 # NASA Hotspot Harmonizer — Ghana
 
-**Live: https://harmonizer.10xvibecode.org** · **Slides (7): [docs/ghana-fire-calendar-slides.pdf](docs/ghana-fire-calendar-slides.pdf)**
+**Live: https://harmonizer.10xvibecode.org** · **Slides (7): https://sonnetechgh-lang.github.io/nasa-hotspot-harmonizer/ghana-fire-calendar-slides.pdf**
 
 Burning activity calendar for Ghana built from harmonized MODIS and VIIRS active-fire hotspots
 (NASA Space Apps 2026: *Harmonization of MODIS and VIIRS Hot Spots*). See [PLAN.md](PLAN.md).
