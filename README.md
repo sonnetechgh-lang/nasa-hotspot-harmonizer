@@ -60,3 +60,7 @@ System (FIRMS), part of NASA's Earth Science Data and Information System (ESDIS)
 conf_class (low|nominal|high), frp (MW), brightness_k, scan, track, daynight, fire_type, use, source_file`
 
 `use` = vegetation fire (`fire_type` 0, or missing in NRT data) with nominal or high confidence.
+
+## License
+
+Code: MIT (see [LICENSE](LICENSE)). Fire data: NASA FIRMS (MODIS C6.1, VIIRS S-NPP). Boundaries: geoBoundaries (CC BY 4.0).
