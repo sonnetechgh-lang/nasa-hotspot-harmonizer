@@ -36,11 +36,11 @@ harmonized MODIS + VIIRS active-fire hotspots (2000 to today). Full plan and tim
   region's districts (drill down), all of them at zoom ≥ 9.5. Regions compare/animation stay region-level. 49 tests.
   User rejected a topic colour scheme + coloured icon tiles: keep the neutral look.
 - GitHub ✅ (14 Nov): public repo https://github.com/sonnetechgh-lang/nasa-hotspot-harmonizer (MIT, data/ not committed).
-- Deploy files ✅ (15 Nov): `deploy/` (setup.sh, update.sh, refresh.sh, systemd units + daily timer 06:17 UTC,
+- Deploy files ✅ (14 Nov): `deploy/` (setup.sh, update.sh, refresh.sh, systemd units + daily timer 06:17 UTC,
   nginx behind Cloudflare Full-strict with origin cert + GET /api cache), guide in `deploy/DEPLOY.md`. Pipeline
   writes are atomic (tmp + os.replace). Not yet run on the VPS.
 - **Next: Day 6** run the deploy on the user's VPS (nginx + systemd + HTTPS + daily data refresh:
-  download → normalize → grid; recalibrate only on purpose), GitHub repo, slides, demo video.
+  download → normalize → grid; recalibrate only on purpose), then slides, demo video.
 - The user's own server often runs on port 8000 (started from VS Code). Don't kill it; test on 8001.
 - New findings: 2025/26 was the lowest season on record (−38%), below normal in all 16 regions;
   season moves north → south (Upper East peak ~23 Nov, Central ~18 Apr); Savannah, Northern,
