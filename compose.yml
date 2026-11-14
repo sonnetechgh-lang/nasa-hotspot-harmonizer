@@ -1,0 +1,17 @@
+# Runs on the VPS in /opt/apps/hotspots, behind the shared Caddy container (network "proxy").
+services:
+  app:
+    build: .
+    image: hotspot-harmonizer:latest
+    container_name: hotspots_app
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+      - ./.env:/app/.env:ro      # FIRMS_MAP_KEY for the daily refresh (read by pipeline/config.py)
+    mem_limit: 2g
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true

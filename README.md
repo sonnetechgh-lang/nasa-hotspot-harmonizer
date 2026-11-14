@@ -63,7 +63,7 @@ conf_class (low|nominal|high), frp (MW), brightness_k, scan, track, daynight, fi
 
 ## Deploy
 
-VPS + nginx + systemd behind Cloudflare, with a daily data refresh: see [deploy/DEPLOY.md](deploy/DEPLOY.md).
+Docker container behind Caddy on the VPS, with a daily data refresh: see [deploy/DEPLOY.md](deploy/DEPLOY.md).
 
 ## License
 

@@ -36,9 +36,11 @@ harmonized MODIS + VIIRS active-fire hotspots (2000 to today). Full plan and tim
   region's districts (drill down), all of them at zoom ≥ 9.5. Regions compare/animation stay region-level. 49 tests.
   User rejected a topic colour scheme + coloured icon tiles: keep the neutral look.
 - GitHub ✅ (14 Nov): public repo https://github.com/sonnetechgh-lang/nasa-hotspot-harmonizer (MIT, data/ not committed).
-- Deploy files ✅ (14 Nov): `deploy/` (setup.sh, update.sh, refresh.sh, systemd units + daily timer 06:17 UTC,
-  nginx behind Cloudflare Full-strict with origin cert + GET /api cache), guide in `deploy/DEPLOY.md`. Pipeline
-  writes are atomic (tmp + os.replace). Not yet run on the VPS.
+- Deploy files ✅ (14 Nov): VPS (Ubuntu 26.04, 2 cores, 7.7 GB, root@187.7.21.43) already runs other apps in
+  Docker behind a shared Caddy container (network `proxy`, `/opt/apps/proxy/Caddyfile`, auto HTTPS, DNS at
+  Spaceship). So: `Dockerfile` + `compose.yml` (container `hotspots_app`, in `/opt/apps/hotspots`),
+  `deploy/Caddyfile.snippet`, host timer `deploy/hotspots-refresh.*` (docker exec refresh.sh, then restart).
+  Pipeline writes are atomic (tmp + os.replace). Never disturb the other apps or their containers.
 - **Next: Day 6** run the deploy on the user's VPS (nginx + systemd + HTTPS + daily data refresh:
   download → normalize → grid; recalibrate only on purpose), then slides, demo video.
 - The user's own server often runs on port 8000 (started from VS Code). Don't kill it; test on 8001.

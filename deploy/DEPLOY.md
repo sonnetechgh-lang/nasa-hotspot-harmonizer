@@ -1,91 +1,78 @@
-# Deploying to a VPS (behind Cloudflare)
+# Deploying to the VPS
+
+The VPS already runs a shared **Caddy** container on ports 80/443 (network `proxy`, config in
+`/opt/apps/proxy/Caddyfile`). It gets HTTPS certificates automatically. This app joins it as one more container:
 
 ```
-visitor ──HTTPS──> Cloudflare (free proxy, CDN, DDoS) ──HTTPS (origin cert)──> nginx :443
-                                                                                 │  caches GET /api/ for 6 h
-                                                                                 ▼
-                                                                     uvicorn 127.0.0.1:8000  (hotspots.service)
-                                                                                 ▲
-                                    hotspots-refresh.timer, daily 06:17 UTC ─────┘  download → normalize → grid → restart
+visitor ──HTTPS──> caddy (Let's Encrypt) ──> hotspots_app:8000 (Docker network "proxy")
+                                                    ▲  data/ and .env mounted from /opt/apps/hotspots
+hotspots-refresh.timer (host, daily 06:17 UTC) ─────┘  docker exec refresh.sh → docker restart
 ```
 
-Assumes Ubuntu 24.04 or Debian 12+ (Python ≥ 3.11), about 2 GB RAM and 2 GB free disk.
-Replace `fires.example.com` with your domain and `user@vps` with your SSH login.
+## 1. DNS (Spaceship)
 
-## 1. Cloudflare
+Add an `A` record `fires` → `187.7.21.43` (same as the other subdomains). Wait until
+`nslookup fires.sonnetghana.com` returns that IP before step 4, or Caddy can't get a certificate.
 
-1. Add the domain to Cloudflare (free plan) and point its nameservers there.
-2. **DNS:** an `A` record for `fires` → the VPS IP, **Proxied** (orange cloud).
-3. **SSL/TLS → Overview:** mode **Full (strict)**.
-4. **SSL/TLS → Origin Server → Create certificate** (default: RSA, 15 years). Keep the page open:
-   you paste the certificate and the private key in step 3.
+## 2. Code + data
 
-## 2. Copy the data up (from your PC)
-
-The data isn't in git (~440 MB). Copying it is much faster than downloading it all again from FIRMS.
+```bash
+# on the VPS
+git clone https://github.com/sonnetechgh-lang/nasa-hotspot-harmonizer.git /opt/apps/hotspots
+```
 
 ```powershell
+# on the PC: data isn't in git (~440 MB)
 cd D:\Code\nasa-hotspot-harmonizer
 tar -czf $env:TEMP\hotspots-data.tgz data
-scp $env:TEMP\hotspots-data.tgz user@vps:/tmp/
+scp $env:TEMP\hotspots-data.tgz root@187.7.21.43:/tmp/
 ```
-
-## 3. On the VPS
 
 ```bash
-# code + system packages + services (prints what's still missing)
-sudo apt-get install -y git
-sudo git clone https://github.com/sonnetechgh-lang/nasa-hotspot-harmonizer.git /opt/nasa-hotspot-harmonizer
-sudo bash /opt/nasa-hotspot-harmonizer/deploy/setup.sh fires.example.com
-
-# data
-sudo tar -xzf /tmp/hotspots-data.tgz -C /opt/nasa-hotspot-harmonizer
-sudo chown -R hotspots:hotspots /opt/nasa-hotspot-harmonizer/data
-rm /tmp/hotspots-data.tgz
-
-# FIRMS key (for the daily refresh)
-sudo nano /opt/nasa-hotspot-harmonizer/.env          # set FIRMS_MAP_KEY=...
-
-# Cloudflare origin certificate from step 1.4
-sudo nano /etc/ssl/cloudflare/origin.pem             # paste the certificate
-sudo nano /etc/ssl/cloudflare/origin.key             # paste the private key
-sudo chmod 600 /etc/ssl/cloudflare/origin.key
-
-# run setup again: now it starts the app, the timer and nginx
-sudo bash /opt/nasa-hotspot-harmonizer/deploy/setup.sh fires.example.com
+# on the VPS
+cd /opt/apps/hotspots
+tar -xzf /tmp/hotspots-data.tgz && rm /tmp/hotspots-data.tgz
+cp .env.example .env && nano .env      # FIRMS_MAP_KEY=...
+chmod 600 .env
+chown -R 1000:1000 data .env           # the container runs as uid 1000
 ```
 
-## 4. Check it
+## 3. Start the container
 
 ```bash
-curl -s http://127.0.0.1:8000/api/health             # {"ok":true,"data_last_day":"..."}
-curl -sI https://fires.example.com/api/meta | grep -i -e "^HTTP" -e x-cache   # 200, MISS then HIT
-systemctl list-timers hotspots-refresh.timer         # next run
+cd /opt/apps/hotspots
+docker compose up -d --build
+docker exec hotspots_app python -c "import urllib.request;print(urllib.request.urlopen('http://127.0.0.1:8000/api/health').read())"
 ```
 
-Then open https://fires.example.com in a browser.
+## 4. Caddy
+
+```bash
+cp /opt/apps/proxy/Caddyfile /opt/apps/proxy/Caddyfile.bak-$(date +%F)
+cat deploy/Caddyfile.snippet | sed '/^#/d' >> /opt/apps/proxy/Caddyfile
+docker exec caddy caddy validate --config /etc/caddy/Caddyfile
+docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+curl -s https://fires.sonnetghana.com/api/health
+```
+
+## 5. Daily refresh
+
+```bash
+cp deploy/hotspots-refresh.service deploy/hotspots-refresh.timer /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now hotspots-refresh.timer
+systemctl list-timers hotspots-refresh.timer
+```
 
 ## Day to day
 
-| Task | Command |
+| Task | Command (in `/opt/apps/hotspots`) |
 |---|---|
-| Deploy new code (after `git push`) | `sudo bash /opt/nasa-hotspot-harmonizer/deploy/update.sh` |
-| Refresh data now | `sudo systemctl start hotspots-refresh.service` |
+| Deploy new code (after `git push`) | `git pull && docker compose up -d --build` |
+| Refresh data now | `systemctl start hotspots-refresh.service` |
 | Refresh log | `journalctl -u hotspots-refresh -n 50` |
-| App log | `journalctl -u hotspots -f` |
-| Restart the app | `sudo systemctl restart hotspots` |
-| Recalibrate (only on purpose) | `sudo -u hotspots /opt/nasa-hotspot-harmonizer/.venv/bin/python -m pipeline.calibrate`, then refresh |
+| App log | `docker logs -f hotspots_app` |
+| Recalibrate (only on purpose) | `docker exec hotspots_app python -m pipeline.calibrate`, then refresh |
 
-How the refresh works: if any step fails, the app keeps serving yesterday's data and nothing restarts.
-Files are written to a temp name and swapped in, so the live app never reads a half-written file.
-During the restart (a few seconds) nginx serves cached API answers.
-
-## Optional: only let Cloudflare reach the origin
-
-```bash
-sudo ufw allow OpenSSH
-for ip in $(curl -s https://www.cloudflare.com/ips-v4) $(curl -s https://www.cloudflare.com/ips-v6); do
-  sudo ufw allow from $ip to any port 443 proto tcp
-done
-sudo ufw enable
-```
+If a refresh step fails, the app keeps serving yesterday's data and nothing restarts. New files are written to a
+temp name and swapped in, so the live app never reads a half-written file. During the restart Caddy holds
+requests (up to 30 s) instead of failing them.

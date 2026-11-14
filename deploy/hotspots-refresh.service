@@ -1,25 +1,14 @@
-# Daily data refresh: download -> normalize -> grid, then restart the app so it loads the new data.
-# Calibration is NOT re-run here (only on purpose, by hand).
+# Host-side daily refresh: download -> normalize -> grid inside the container, then restart it
+# so it loads the new data. Calibration is NOT re-run here (only on purpose, by hand).
+# Install: cp deploy/hotspots-refresh.* /etc/systemd/system/ && systemctl enable --now hotspots-refresh.timer
 [Unit]
 Description=Refresh FIRMS hotspot data for the burning calendar
-After=network-online.target
-Wants=network-online.target
+After=docker.service
+Requires=docker.service
 
 [Service]
 Type=oneshot
-User=hotspots
-Group=hotspots
-WorkingDirectory=/opt/nasa-hotspot-harmonizer
-ExecStart=/opt/nasa-hotspot-harmonizer/deploy/refresh.sh
-# "+" = run as root. Only runs if the refresh succeeded: restart the app, empty nginx's API cache.
-ExecStartPost=+/bin/systemctl restart hotspots.service
-ExecStartPost=+/bin/sh -c "rm -rf /var/cache/nginx/hotspots/*"
+ExecStart=/usr/bin/docker exec hotspots_app /app/deploy/refresh.sh
+# Only runs if the refresh succeeded; Caddy holds requests during the few seconds of restart
+ExecStartPost=/usr/bin/docker restart hotspots_app
 TimeoutStartSec=2h
-Nice=10
-IOSchedulingClass=idle
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
-# DuckDB may spill temp files into the working directory, so the app folder stays writable
-ReadWritePaths=/opt/nasa-hotspot-harmonizer

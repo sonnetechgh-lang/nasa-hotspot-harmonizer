@@ -1,0 +1,14 @@
+# Add to /opt/apps/proxy/Caddyfile (replace the domain if needed), then:
+#   docker exec caddy caddy validate --config /etc/caddy/Caddyfile && docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+fires.sonnetghana.com {
+	encode zstd gzip
+
+	reverse_proxy hotspots_app:8000 {
+		# keep retrying for a while instead of failing during the daily restart
+		lb_try_duration 30s
+	}
+
+	log {
+		output file /var/log/hotspots.access.log
+	}
+}
