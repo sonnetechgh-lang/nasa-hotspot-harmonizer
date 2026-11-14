@@ -15,6 +15,7 @@ Outputs:
 Run:  python -m pipeline.grid   (after python -m pipeline.calibrate)
 """
 import json
+import os
 
 import duckdb
 import pandas as pd
@@ -72,7 +73,9 @@ def harmonized_weight_sql(cal: dict, g: str) -> str:
 def build(con, cal: dict) -> pd.DataFrame:
     cell = cal["cell_deg"]
     PROCESSED.mkdir(parents=True, exist_ok=True)
-    grid_path = (PROCESSED / "grid_daily.parquet").as_posix()
+    # Write to temp files and swap them in at the end, so the running API never reads a half-written file
+    final_grid = PROCESSED / "grid_daily.parquet"
+    grid_path = (PROCESSED / "grid_daily.parquet.tmp").as_posix()
     con.execute(f"""
         COPY (
           SELECT who AS sensor, date, ix, iy,
@@ -88,11 +91,13 @@ def build(con, cal: dict) -> pd.DataFrame:
                count(*) FILTER (WHERE g.sensor = 'MODIS') AS modis_cd,
                count(*) FILTER (WHERE g.sensor = 'VIIRS') AS viirs_cd,
                sum({harmonized_weight_sql(cal, 'g')}) AS harmonized
-        FROM '{grid_path}' g
+        FROM read_parquet('{grid_path}') g
         JOIN factors f ON f.z = g.zone AND f.m = month(g.date)
         JOIN factors_terra t ON t.z = g.zone AND t.m = month(g.date)
         GROUP BY ALL ORDER BY ALL""").df()
-    monthly.to_parquet(PROCESSED / "monthly_harmonized.parquet", index=False)
+    monthly.to_parquet(PROCESSED / "monthly_harmonized.parquet.tmp", index=False)
+    os.replace(grid_path, final_grid)
+    os.replace(PROCESSED / "monthly_harmonized.parquet.tmp", PROCESSED / "monthly_harmonized.parquet")
     return monthly
 
 

@@ -1,0 +1,12 @@
+# Runs the refresh once a day. 06:17 UTC (= Ghana time) is after the night VIIRS/MODIS
+# passes reach FIRMS near-real-time. Persistent=true catches up after a reboot.
+[Unit]
+Description=Daily FIRMS data refresh
+
+[Timer]
+OnCalendar=*-*-* 06:17:00 UTC
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

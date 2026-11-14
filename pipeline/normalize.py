@@ -12,6 +12,7 @@ Output: data/processed/hotspots.parquet and data/processed/summary_by_year.csv
 Run:    python -m pipeline.normalize
 """
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -147,7 +148,9 @@ def summarize(df: pd.DataFrame) -> pd.DataFrame:
 def main() -> None:
     df = build()
     PROCESSED.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(PROCESSED / "hotspots.parquet", index=False)
+    # Temp file + rename, so the running API never reads a half-written file
+    df.to_parquet(PROCESSED / "hotspots.parquet.tmp", index=False)
+    os.replace(PROCESSED / "hotspots.parquet.tmp", PROCESSED / "hotspots.parquet")
     summary = summarize(df)
     summary.to_csv(PROCESSED / "summary_by_year.csv", index=False)
 
